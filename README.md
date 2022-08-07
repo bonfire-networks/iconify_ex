@@ -1,6 +1,8 @@
 # Iconify for Phoenix
 
-A collection of Phoenix Components for Iconify
+Creates Phoenix Components for the SVG of 100,000+ icons from 100+ icon sets from https://iconify.design
+
+Only creates a component on-the-fly at compilation time when a particular icon is first included in a view or component. 
 
 ## Installation
 
@@ -19,7 +21,7 @@ cd deps/iconify_ex/assets && yarn
 
 ## Usage
 
-Add `import Iconify` in your Phoenix or LiveView module where you want to use it (or just once in the macros in your Web module)
+First add `import Iconify` in your Phoenix or LiveView module where you want to use it (or just once in the macros in your Web module).
 
 Embed an icon using default classes:
 ```html
