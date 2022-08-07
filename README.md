@@ -1,4 +1,4 @@
-# Surface Heroicons
+# Iconify for Phoenix
 
 A collection of Phoenix Components for Iconify
 
