@@ -26,7 +26,7 @@ defmodule Iconify do
           |> IO.inspect(label: "load JSON for #{icon}")
 
           svg_content =
-            "<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" aria-hidden=\"true\" role=\"img\" class={@class} viewBox=\"0 0 20 20\" aria-hidden=\"true\">#{get_svg(src_path, icon_name)}</svg>"
+            "<svg xmlns=\"http://www.w3.org/2000/svg\" aria-hidden=\"true\" role=\"img\" class={@class} viewBox=\"0 0 24 24\" aria-hidden=\"true\">#{get_svg(src_path, icon_name)}</svg>"
 
           component_content = build_component(module_name, svg_content)
 
