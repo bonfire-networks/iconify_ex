@@ -22,13 +22,10 @@ defmodule Iconify do
       if not Code.ensure_loaded?(module_atom) do
 
         if not File.exists?(component_filepath) do
-          src_path = "#{@cwd}/assets/node_modules/@iconify/json/json/#{family_name}.json"
+          json_path = "#{@cwd}/assets/node_modules/@iconify/json/json/#{family_name}.json"
           |> IO.inspect(label: "load JSON for #{icon}")
 
-          svg_content =
-            "<svg xmlns=\"http://www.w3.org/2000/svg\" aria-hidden=\"true\" role=\"img\" class={@class} viewBox=\"0 0 24 24\" aria-hidden=\"true\">#{get_svg(src_path, icon_name)}</svg>"
-
-          component_content = build_component(module_name, svg_content)
+          component_content = build_component(module_name, svg(json_path, icon_name))
 
           File.mkdir_p(component_path)
           File.write!(component_filepath, component_content)
@@ -61,21 +58,23 @@ defmodule Iconify do
     other -> raise other
   end
 
+  defp svg(json_path, icon_name) do
+    {svg, w, h} = get_svg(json_path, icon_name)
+    "<svg xmlns=\"http://www.w3.org/2000/svg\" aria-hidden=\"true\" role=\"img\" class={@class} viewBox=\"0 0 #{w} #{h}\" aria-hidden=\"true\">#{svg}</svg>"
+  end
+
   defp get_svg(json_filepath, icon_name) do
     case get_json(json_filepath, icon_name) do
       json when is_map(json) ->
-        icons = json
-        |> Map.fetch!("icons")
+        icons = Map.fetch!(json, "icons")
 
         if Map.has_key?(icons, icon_name) do
-          icons
-          |> Map.fetch!(icon_name)
-          |> Map.fetch!("body")
+          icon = Map.fetch!(icons, icon_name)
+
+          {Map.fetch!(icon, "body"), Map.get(icon, "width") || Map.get(json, "width") || 16, Map.get(icon, "height") || Map.get(json, "height") || 16}
         else
           icon_error(icon_name, "No icon named `#{icon_name}` found in this icon set. Icons available include: #{Enum.join(Map.keys(icons), ", ")}")
         end
-
-      icon when is_atom(icon) -> icon
     end
   end
 
