@@ -2,7 +2,7 @@
 # yarn lockfile v1
 
 
-"@iconify/json@^2.1.87":
+"@iconify/json@^2.1.107":
   version "2.1.107"
   resolved "https://registry.yarnpkg.com/@iconify/json/-/json-2.1.107.tgz#75cff463a567a9f4f98ebe4ed2a8c988d2200168"
   integrity sha512-VJUQI4SDyOoa+DefJ5jdY5dOju52QUNfbaV6+hgFEp7QoP5ae7ZfQo+GcKYf+mvLb56U3UJL/E25PMFqHcZcYw==
