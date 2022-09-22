@@ -1,8 +1,8 @@
 # Iconify for Phoenix
 
-Creates Phoenix Components for the SVG of 100,000+ icons from 100+ icon sets from https://iconify.design
+Phoenix Component generator for the SVG of 100,000+ icons from 100+ icon sets from https://icon-sets.iconify.design
 
-Only creates a component on-the-fly at compilation time when a particular icon is first included in a view or component. 
+Only generates a component on-the-fly when a particular icon is first included in a view or component. 
 
 ## Installation
 
@@ -14,7 +14,7 @@ def deps do
 end
 ```
 
-You need to fetch the latest [iconify icon sets](https://github.com/iconify/icon-sets) by running:
+You then need to fetch the latest [iconify icon sets](https://github.com/iconify/icon-sets) by running:
 ```bash
 cd deps/iconify_ex/assets && yarn
 ```

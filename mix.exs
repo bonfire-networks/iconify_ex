@@ -9,8 +9,7 @@ defmodule Iconify.MixProject do
       app: :iconify_ex,
       version: @version,
       elixir: "~> 1.10",
-      description: "Many collections of icons",
-      organization: "Bonfire",
+      description: "Phoenix Component generator for the SVG of 100,000+ icons from 100+ icon sets from https://iconify.design",
       source_url: @project_url,
       homepage_url: @project_url,
       elixirc_paths: elixirc_paths(Mix.env()),
@@ -49,7 +48,8 @@ defmodule Iconify.MixProject do
       maintainers: ["Bonfire"],
       licenses: ["MIT"],
       links: %{
-        "GitHub" => @project_url
+        "GitHub" => @project_url,
+        "Browse available icons" => "https://icon-sets.iconify.design"
       }
     ]
   end
