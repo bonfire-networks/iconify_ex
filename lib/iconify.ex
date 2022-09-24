@@ -1,5 +1,6 @@
 defmodule Iconify do
   use Phoenix.Component
+  import Phoenix.LiveView.HTMLEngine
   require Logger
 
   # this is executed at compile time
@@ -8,7 +9,8 @@ defmodule Iconify do
   def iconify(assigns) do
     component(
       &prepare_icon_component(Map.fetch!(assigns, :icon)).render/1,
-      assigns
+      assigns,
+      {__ENV__.module, __ENV__.function, __ENV__.file, __ENV__.line}
     )
   end
 
