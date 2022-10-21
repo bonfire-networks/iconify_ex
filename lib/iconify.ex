@@ -17,35 +17,38 @@ defmodule Iconify do
   defp prepare_icon_component(icon \\ "heroicons-solid:question-mark-circle")
 
   defp prepare_icon_component(icon) when is_binary(icon) do
-    [family_name, icon_name] = family_and_icon(icon)
-    # temporary
-    icon_name = String.trim_trailing(icon_name, "-icon")
-    component_path = "./lib/web/icons/#{family_name}"
-    component_filepath = "#{component_path}/#{icon_name}.ex"
-    module_name = module_name(family_name, icon_name)
+    with [family_name, icon_name] <- family_and_icon(icon) do
+      icon_name = String.trim_trailing(icon_name, "-icon")
+      component_path = "./lib/web/icons/#{family_name}"
+      component_filepath = "#{component_path}/#{icon_name}.ex"
+      module_name = module_name(family_name, icon_name)
 
-    module_atom =
-      "Elixir.#{module_name}"
-      |> String.to_atom()
+      module_atom =
+        "Elixir.#{module_name}"
+        |> String.to_atom()
 
-    # |> IO.inspect(label: "module_atom")
+      # |> IO.inspect(label: "module_atom")
 
-    if not Code.ensure_loaded?(module_atom) do
-      if not File.exists?(component_filepath) do
-        json_path =
-          "#{@cwd}/assets/node_modules/@iconify/json/json/#{family_name}.json"
-          |> IO.inspect(label: "load JSON for #{icon}")
+      if not Code.ensure_loaded?(module_atom) do
+        if not File.exists?(component_filepath) do
+          json_path =
+            "#{@cwd}/assets/node_modules/@iconify/json/json/#{family_name}.json"
+            |> IO.inspect(label: "load JSON for #{icon}")
 
-        component_content = build_component(module_name, svg(json_path, icon_name))
+          component_content = build_component(module_name, svg(json_path, icon_name))
 
-        File.mkdir_p(component_path)
-        File.write!(component_filepath, component_content)
+          File.mkdir_p(component_path)
+          File.write!(component_filepath, component_content)
+        end
+
+        Code.compile_file(component_filepath)
       end
 
-      Code.compile_file(component_filepath)
-    end
+      module_atom
 
-    module_atom
+    else _ ->
+      icon_error(icon, "Could not process family_and_icon")
+    end
   catch
     fallback_module when is_atom(fallback_module) -> fallback_module
     other -> raise other
