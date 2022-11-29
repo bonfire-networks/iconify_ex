@@ -14,12 +14,14 @@ defmodule Iconify do
     )
   end
 
+  defp path, do: Application.get_env(:iconify_ex, :generated_icon_modules_path, "./lib/web/icons")
+
   defp prepare_icon_component(icon \\ "heroicons-solid:question-mark-circle")
 
   defp prepare_icon_component(icon) when is_binary(icon) do
     with [family_name, icon_name] <- family_and_icon(icon) do
       icon_name = String.trim_trailing(icon_name, "-icon")
-      component_path = "./lib/web/icons/#{family_name}"
+      component_path = "#{path()}/#{family_name}"
       component_filepath = "#{component_path}/#{icon_name}.ex"
       module_name = module_name(family_name, icon_name)
 
@@ -81,7 +83,23 @@ defmodule Iconify do
   defp svg(json_path, icon_name) do
     {svg, w, h} = get_svg(json_path, icon_name)
 
-    "<svg xmlns=\"http://www.w3.org/2000/svg\" aria-hidden=\"true\" role=\"img\" class={@class} viewBox=\"0 0 #{w} #{h}\" aria-hidden=\"true\">#{svg}</svg>"
+    "<svg xmlns=\"http://www.w3.org/2000/svg\" aria-hidden=\"true\" role=\"img\" class={@class} viewBox=\"0 0 #{w} #{h}\" aria-hidden=\"true\">#{clean_svg(svg, icon_name)}</svg>"
+  end
+
+  defp clean_svg(svg, icon_name \\ nil) do
+    with {:ok, svg} <- Floki.parse_fragment(svg) do
+      Floki.traverse_and_update(svg, fn
+        {tag, attrs, children} ->
+          # IO.inspect(attrs, label: "iconiify #{icon_name} tag")
+          {tag, Keyword.drop(attrs, ["id"]), children}
+        other ->
+          # IO.inspect(other, label: "iconiify #{icon_name} other")
+          other
+      end)
+      |> Floki.raw_html()
+    else _ ->
+      svg
+    end
   end
 
   defp get_svg(json_filepath, icon_name) do
