@@ -14,7 +14,7 @@ defmodule Iconify do
     )
   end
 
-  defp path, do: Application.get_env(:iconify_ex, :generated_icon_modules_path, "./lib/web/icons")
+  def path, do: Application.get_env(:iconify_ex, :generated_icon_modules_path, "./lib/web/icons")
 
   defp prepare_icon_component(icon \\ "heroicons-solid:question-mark-circle")
 
