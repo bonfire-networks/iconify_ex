@@ -47,9 +47,9 @@ defmodule Iconify do
       end
 
       module_atom
-
-    else _ ->
-      icon_error(icon, "Could not process family_and_icon")
+    else
+      _ ->
+        icon_error(icon, "Could not process family_and_icon")
     end
   catch
     fallback_module when is_atom(fallback_module) -> fallback_module
@@ -92,13 +92,15 @@ defmodule Iconify do
         {tag, attrs, children} ->
           # IO.inspect(attrs, label: "iconiify #{icon_name} tag")
           {tag, Keyword.drop(attrs, ["id"]), children}
+
         other ->
           # IO.inspect(other, label: "iconiify #{icon_name} other")
           other
       end)
       |> Floki.raw_html()
-    else _ ->
-      svg
+    else
+      _ ->
+        svg
     end
   end
 
