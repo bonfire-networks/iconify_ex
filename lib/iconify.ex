@@ -83,7 +83,7 @@ defmodule Iconify do
   defp svg(json_path, icon_name) do
     {svg, w, h} = get_svg(json_path, icon_name)
 
-    "<svg xmlns=\"http://www.w3.org/2000/svg\" aria-hidden=\"true\" role=\"img\" class={@class} viewBox=\"0 0 #{w} #{h}\" aria-hidden=\"true\">#{clean_svg(svg, icon_name)}</svg>"
+    "<svg data-icon=\"#{icon_name}\" xmlns=\"http://www.w3.org/2000/svg\" aria-hidden=\"true\" role=\"img\" class={@class} viewBox=\"0 0 #{w} #{h}\" aria-hidden=\"true\">#{clean_svg(svg, icon_name)}</svg>"
   end
 
   defp clean_svg(svg, icon_name \\ nil) do
@@ -178,6 +178,7 @@ defmodule Iconify do
     # hint: the import makes sure icons are generated before icon modules are compiled
     """
     defmodule #{module_name} do
+      @moduledoc false
       use Phoenix.Component
       def render(assigns) do
         ~H\"\"\"
