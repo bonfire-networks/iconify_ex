@@ -76,13 +76,10 @@ defmodule Iconify do
     src = "#{path}/#{icon_name}.svg"
 
     if not File.exists?(src) do
-      json_path =
-        "#{@cwd}/assets/node_modules/@iconify/json/json/#{family_name}.json"
-        |> IO.inspect(label: "load JSON for #{family_name}:#{icon_name}")
+      json_path = json_path(family_name)
 
-      svg =
-        svg(json_path, icon_name)
-        |> IO.inspect()
+      svg = svg(json_path, icon_name)
+      # |> IO.inspect()
 
       File.mkdir_p(path)
       File.write!(src, svg)
@@ -142,9 +139,7 @@ defmodule Iconify do
     if not Code.ensure_loaded?(module_atom) do
       if dev_env?() do
         if not File.exists?(component_filepath) do
-          json_path =
-            "#{@cwd}/assets/node_modules/@iconify/json/json/#{family_name}.json"
-            |> IO.inspect(label: "load JSON for #{family_name}:#{icon_name}")
+          json_path = json_path(family_name)
 
           component_content =
             build_component(module_name, svg_for_component(json_path, icon_name))
@@ -206,17 +201,13 @@ defmodule Iconify do
 
     with {:ok, file} <- File.open(css_path, [:read, :append, :utf8]) do
       if !exists_in_css?(file, icon_class) do
-        json_path =
-          "#{@cwd}/assets/node_modules/@iconify/json/json/#{family_name}.json"
-          |> IO.inspect(label: "load JSON for #{family_name}:#{icon_name}")
+        json_path = json_path(family_name)
 
-        svg =
-          svg(json_path, icon_name)
-          |> IO.inspect()
+        svg = svg(json_path, icon_name)
+        # |> IO.inspect()
 
-        css =
-          css_svg(icon_class, svg)
-          |> IO.inspect()
+        css = css_svg(icon_class, svg)
+        # |> IO.inspect()
 
         append_css(file, css)
       end
@@ -445,6 +436,11 @@ defmodule Iconify do
       true
     end
   end
+
+  defp json_path(family_name),
+    do:
+      "#{@cwd}/assets/node_modules/@iconify/json/json/#{family_name}.json"
+      |> IO.inspect(label: "load JSON for #{family_name} icon family")
 
   defp css_svg(class_name, svg) do
     ".#{class_name}{content:url(\"data:image/svg+xml;utf8,#{svg |> String.split() |> Enum.join(" ") |> URI.encode(&URI.char_unescaped?(&1)) |> String.replace("%20", " ") |> String.replace("%22", "'")}\")}"
