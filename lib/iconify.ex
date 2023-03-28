@@ -10,7 +10,10 @@ defmodule Iconify do
   def iconify(assigns) do
     icon = Map.fetch!(assigns, :icon)
 
-    case mode() do
+    # workaround for emojis not playing nice in CSS but also being bulky
+    mode = if String.contains?(to_string(icon), ["emoji", "noto"]), do: :img, else: mode()
+
+    case mode do
       :img ->
         src = prepare_icon_img(icon)
 
@@ -21,11 +24,11 @@ defmodule Iconify do
         )
 
       :css ->
-        icon_class = prepare_icon_css(icon)
+        icon_css_name = prepare_icon_css(icon)
 
         component(
           &render_svg_with_css/1,
-          assigns |> Enum.into(%{icon_class: icon_class}),
+          assigns |> Enum.into(%{icon_css_name: icon_css_name}),
           {__ENV__.module, __ENV__.function, __ENV__.file, __ENV__.line}
         )
 
@@ -53,6 +56,8 @@ defmodule Iconify do
   def static_url, do: Application.get_env(:iconify_ex, :generated_icon_static_url, "")
 
   def mode, do: Application.get_env(:iconify_ex, :mode, false)
+  def using_svg_inject?, do: Application.get_env(:iconify_ex, :using_svg_inject, false)
+  def css_class, do: Application.get_env(:iconify_ex, :css_class, "iconify_icon")
 
   defp prepare_icon_img(icon) do
     with [family_name, icon_name] <- family_and_icon(icon) do
@@ -84,6 +89,10 @@ defmodule Iconify do
 
       File.mkdir_p(path)
       File.write!(src, svg)
+
+      IO.inspect(src, label: "Iconify icon added")
+    else
+      IO.inspect(src, label: "Iconify icon already exists")
     end
   end
 
@@ -180,13 +189,13 @@ defmodule Iconify do
     with [family_name, icon_name] <- family_and_icon(icon) do
       icon_name = String.trim_trailing(icon_name, "-icon")
 
-      icon_class = class_name(family_name, icon_name)
+      icon_css_name = class_name(family_name, icon_name)
 
       if dev_env?() do
-        do_prepare_icon_css(family_name, icon_name, icon_class)
+        do_prepare_icon_css(family_name, icon_name, icon_css_name)
       end
 
-      icon_class
+      icon_css_name
     else
       _ ->
         icon_error(icon, "Could not process family_and_icon")
@@ -196,18 +205,18 @@ defmodule Iconify do
     other -> raise other
   end
 
-  defp do_prepare_icon_css(family_name, icon_name, icon_class) do
+  defp do_prepare_icon_css(family_name, icon_name, icon_css_name) do
     icons_dir = static_path()
     css_path = "#{icons_dir}/icons.css"
 
     with {:ok, file} <- File.open(css_path, [:read, :append, :utf8]) do
-      if !exists_in_css?(file, icon_class) do
+      if !exists_in_css?(file, icon_css_name) do
         json_path = json_path(family_name)
 
         svg = svg(json_path, icon_name)
         # |> IO.inspect()
 
-        css = css_svg(icon_class, svg)
+        css = css_svg(icon_css_name, svg)
         # |> IO.inspect()
 
         append_css(file, css)
@@ -340,10 +349,13 @@ defmodule Iconify do
       |> Enum.flat_map(fn dir ->
         path = Path.join(icons_dir, dir)
 
-        File.ls!(path)
-        |> Enum.map(fn file ->
-          {"#{dir}:#{Path.basename(file, ".svg")}", Path.join(path, file)}
-        end)
+        if File.regular?(path),
+          do: [],
+          else:
+            File.ls!(path)
+            |> Enum.map(fn file ->
+              {class_name(dir, Path.basename(file, ".svg")), Path.join(path, file)}
+            end)
       end)
       |> IO.inspect()
 
@@ -371,9 +383,9 @@ defmodule Iconify do
       end)
 
     css =
-      Enum.map(icons, fn {name, mod} ->
+      Enum.map(icons, fn {class_name, mod} ->
         css_svg(
-          name,
+          class_name,
           mod.render([])
           |> Map.get(:static, [])
           |> Enum.join("")
@@ -390,19 +402,19 @@ defmodule Iconify do
     File.write!("#{icons_dir}/icons.css", Enum.join(css, "\n"))
   end
 
-  defp maybe_append_css(file_or_icons_dir \\ static_path(), icon_class, css)
+  defp maybe_append_css(file_or_icons_dir \\ static_path(), icon_css_name, css)
 
-  defp maybe_append_css(icons_dir, icon_class, css) when is_binary(icons_dir) do
+  defp maybe_append_css(icons_dir, icon_css_name, css) when is_binary(icons_dir) do
     css_path = "#{icons_dir}/icons.css"
 
     with {:ok, file} <- File.open(css_path, [:read, :append, :utf8]) do
-      maybe_append_css(file, icon_class, css)
+      maybe_append_css(file, icon_css_name, css)
     end
   end
 
-  defp maybe_append_css(file, icon_class, css) do
+  defp maybe_append_css(file, icon_css_name, css) do
     # TODO: optimise by reading line by line
-    if String.contains?(IO.read(file, :all), icon_class) do
+    if String.contains?(IO.read(file, :all), icon_css_name) do
       :ok
     else
       append_css(file, css)
@@ -417,13 +429,13 @@ defmodule Iconify do
     IO.write(file, "\n#{css}")
   end
 
-  defp exists_in_css?(file_or_icons_dir \\ static_path(), icon_class)
+  defp exists_in_css?(file_or_icons_dir \\ static_path(), icon_css_name)
 
-  defp exists_in_css?(icons_dir, icon_class) when is_binary(icons_dir) do
+  defp exists_in_css?(icons_dir, icon_css_name) when is_binary(icons_dir) do
     css_path = "#{icons_dir}/icons.css"
 
     with {:ok, file} <- File.open(css_path, [:read]) do
-      exists_in_css?(file, icon_class)
+      exists_in_css?(file, icon_css_name)
     else
       e ->
         IO.warn(e)
@@ -431,9 +443,9 @@ defmodule Iconify do
     end
   end
 
-  defp exists_in_css?(file, icon_class) do
+  defp exists_in_css?(file, icon_css_name) do
     # TODO: optimise by reading line by line
-    if String.contains?(IO.read(file, :all), icon_class) do
+    if String.contains?(IO.read(file, :all), icon_css_name) do
       true
     end
   end
@@ -444,8 +456,12 @@ defmodule Iconify do
       |> IO.inspect(label: "load JSON for #{family_name} icon family")
 
   defp css_svg(class_name, svg) do
-    ".#{class_name}{content:url(\"data:image/svg+xml;utf8,#{svg |> String.split() |> Enum.join(" ") |> URI.encode(&URI.char_unescaped?(&1)) |> String.replace("%20", " ") |> String.replace("%22", "'")}\")}"
+    ".#{class_name}{--Iy:url(\"data:image/svg+xml;utf8,#{svg |> String.split() |> Enum.join(" ") |> URI.encode(&URI.char_unescaped?(&1)) |> String.replace("%20", " ") |> String.replace("%22", "'")}\");--webkit-mask-image:var(--Iy);mask-image:var(--Iy)}"
   end
+
+  # defp css_svg(class_name, svg) do
+  #   ".#{class_name}{content:url(\"data:image/svg+xml;utf8,#{svg |> String.split() |> Enum.join(" ") |> URI.encode(&URI.char_unescaped?(&1)) |> String.replace("%20", " ") |> String.replace("%22", "'")}\")}"
+  # end
 
   defp class_name(family, icon), do: "iconify_#{family}_#{icon}"
 
@@ -461,13 +477,26 @@ defmodule Iconify do
 
   def render_svg_with_img(assigns) do
     ~H"""
-    <img src={@src} class={@class} onload="SVGInject(this)" aria-hidden="true" />
+    <img
+      src={@src}
+      class={@class}
+      onload={if using_svg_inject?(), do: "SVGInject(this)"}
+      aria-hidden="true"
+    />
     """
   end
 
   def render_svg_with_css(assigns) do
     ~H"""
-    <div class={"#{@icon_class} #{@class}"} aria-hidden="true" />
+    <div class={"#{css_class()} #{@icon_css_name} #{@class}"} aria-hidden="true" />
     """
+
+    # <div class={"#{css_class()} #{@class}"} style={"--webkit-mask: var(--#{@icon_css_name}); mask: var(--#{@icon_css_name})"} aria-hidden="true" />
   end
+
+  # def render_svg_with_css(assigns) do
+  #   ~H"""
+  #   <div class={"#{@icon_css_name} #{@class}"} aria-hidden="true" />
+  #   """
+  # end
 end

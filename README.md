@@ -5,9 +5,9 @@ Phoenix helpers for using 100,000+ SVG icons from 100+ icon sets compiled by [Ic
 It copies only the icons you use from the iconify library into your project, preparing them on-the-fly when you first use an icon in a view or component, during development.
 
 It can be configured to embed the icons one of three ways:
+- `css` (default): generate a single CSS file containing classes with SVGs of all the icons used 
+- `img` (default for emojis): to create SVG files in your static assets, used to be included with `img` tags and loaded over HTTP (you may want to include https://github.com/iconfu/svg-inject on your site to enable styling of the SVGs, e.g. to change their colour)
 - `inline`: to generate a Phoenix Component for each icon used, used to embed the icons as `svg` tags inline in the HTML of your views (meaning the SVG will be included in LiveView diffs)
-- `img`: to create SVG files in your static assets, used to be included with `img` tags and loaded over HTTP (you probably want to include a JS hook with https://github.com/iconfu/svg-inject to enable styling of the SVGs, e.g. to change their colour)
-- `css`: generate a single CSS file containing classes with SVGs of all the icons used (using `content:url(\"data:image/svg...` meaning the SVG is treated like and image and can't be styled)
 
 ## Installation
 
@@ -29,9 +29,9 @@ cd deps/iconify_ex/assets && yarn
 1. Add `import Iconify` in your Phoenix or LiveView module where you want to use it (or just once in the macros in your Web module).
 
 2. Set one of these options in config to choose which approach you want to use (see above for explanations):
-- `config :iconify_ex, :mode, :inline` 
-- `config :iconify_ex, :mode, :img` 
 - `config :iconify_ex, :mode, :css` 
+- `config :iconify_ex, :mode, :img` 
+- `config :iconify_ex, :mode, :inline` 
 
 3. In all three cases, usage is simple and remains the same:
 
