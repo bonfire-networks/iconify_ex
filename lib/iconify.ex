@@ -425,7 +425,7 @@ defmodule Iconify do
 
   defp maybe_append_css(file, icon_css_name, css) do
     # TODO: optimise by reading line by line
-    if String.contains?(IO.read(file, :all), icon_css_name) do
+    if String.contains?(IO.read(file, :all), "\"#{icon_css_name}\"") do
       :ok
     else
       append_css(file, css)
@@ -456,7 +456,7 @@ defmodule Iconify do
 
   defp exists_in_css?(file, icon_css_name) do
     # TODO: optimise by reading line by line
-    if String.contains?(IO.read(file, :all), icon_css_name) do
+    if String.contains?(IO.read(file, :all), "\"#{icon_css_name}\"") do
       true
     end
   end
