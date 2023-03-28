@@ -8,6 +8,16 @@ defmodule Iconify do
   @cwd File.cwd!()
 
   def iconify(assigns) do
+    with {_, fun, assigns} <- prepare(assigns) do
+      component(
+        fun,
+        assigns,
+        {__ENV__.module, __ENV__.function, __ENV__.file, __ENV__.line}
+      )
+    end
+  end
+
+  def prepare(assigns) do
     icon = Map.fetch!(assigns, :icon)
 
     # workaround for emojis not playing nice in CSS but also being bulky
@@ -17,28 +27,16 @@ defmodule Iconify do
       :img ->
         src = prepare_icon_img(icon)
 
-        component(
-          &render_svg_with_img/1,
-          assigns |> Enum.into(%{src: src}),
-          {__ENV__.module, __ENV__.function, __ENV__.file, __ENV__.line}
-        )
+        {:img, &render_svg_with_img/1, assigns |> Enum.into(%{src: src})}
 
-      :css ->
-        icon_css_name = prepare_icon_css(icon)
+      :inline ->
+        {:inline, &prepare_icon_component(icon).render/1, assigns}
 
-        component(
-          &render_svg_with_css/1,
-          assigns |> Enum.into(%{icon_css_name: icon_css_name}),
-          {__ENV__.module, __ENV__.function, __ENV__.file, __ENV__.line}
-        )
-
-      # :inline by default
+      # :css by default
       _ ->
-        component(
-          &prepare_icon_component(icon).render/1,
-          assigns,
-          {__ENV__.module, __ENV__.function, __ENV__.file, __ENV__.line}
-        )
+        icon_name = prepare_icon_css(icon)
+
+        {:css, &render_svg_with_css/1, assigns |> Enum.into(%{icon_name: icon_name})}
     end
   end
 
@@ -57,7 +55,7 @@ defmodule Iconify do
 
   def mode, do: Application.get_env(:iconify_ex, :mode, false)
   def using_svg_inject?, do: Application.get_env(:iconify_ex, :using_svg_inject, false)
-  def css_class, do: Application.get_env(:iconify_ex, :css_class, "iconify_icon")
+  # def css_class, do: Application.get_env(:iconify_ex, :css_class, "iconify_icon")
 
   defp prepare_icon_img(icon) do
     with [family_name, icon_name] <- family_and_icon(icon) do
@@ -73,7 +71,7 @@ defmodule Iconify do
         icon_error(icon, "Could not process family_and_icon")
     end
   catch
-    fallback_module when is_atom(fallback_module) -> fallback_module
+    {:fallback, fallback_icon} when is_binary(fallback_icon) -> prepare_icon_img(fallback_icon)
     other -> raise other
   end
 
@@ -106,8 +104,11 @@ defmodule Iconify do
         icon_error(icon, "Could not process family_and_icon")
     end
   catch
-    fallback_module when is_atom(fallback_module) -> fallback_module
-    other -> raise other
+    {:fallback, fallback_icon} when is_binary(fallback_icon) ->
+      prepare_icon_component(fallback_icon)
+
+    other ->
+      raise other
   end
 
   defp prepare_icon_component(icon) when is_atom(icon) do
@@ -120,8 +121,11 @@ defmodule Iconify do
       )
     end
   catch
-    fallback_module when is_atom(fallback_module) -> fallback_module
-    other -> raise other
+    {:fallback, fallback_icon} when is_binary(fallback_icon) ->
+      prepare_icon_component(fallback_icon)
+
+    other ->
+      raise other
   end
 
   defp prepare_icon_component(icon) do
@@ -130,8 +134,11 @@ defmodule Iconify do
       "Expected a binary icon name or an icon component module atom, got `#{inspect(icon)}`"
     )
   catch
-    fallback_module when is_atom(fallback_module) -> fallback_module
-    other -> raise other
+    {:fallback, fallback_icon} when is_binary(fallback_icon) ->
+      prepare_icon_component(fallback_icon)
+
+    other ->
+      raise other
   end
 
   defp do_prepare_icon_component(family_name, icon_name) do
@@ -166,8 +173,11 @@ defmodule Iconify do
 
     module_atom
   catch
-    fallback_module when is_atom(fallback_module) -> fallback_module
-    other -> raise other
+    {:fallback, fallback_icon} when is_binary(fallback_icon) ->
+      prepare_icon_component(fallback_icon)
+
+    other ->
+      raise other
   end
 
   def list_components do
@@ -189,7 +199,7 @@ defmodule Iconify do
     with [family_name, icon_name] <- family_and_icon(icon) do
       icon_name = String.trim_trailing(icon_name, "-icon")
 
-      icon_css_name = class_name(family_name, icon_name)
+      icon_css_name = css_icon_name(family_name, icon_name)
 
       if dev_env?() do
         do_prepare_icon_css(family_name, icon_name, icon_css_name)
@@ -201,7 +211,7 @@ defmodule Iconify do
         icon_error(icon, "Could not process family_and_icon")
     end
   catch
-    fallback_module when is_atom(fallback_module) -> fallback_module
+    {:fallback, fallback_icon} when is_binary(fallback_icon) -> prepare_icon_css(fallback_icon)
     other -> raise other
   end
 
@@ -335,7 +345,8 @@ defmodule Iconify do
          Iconify.HeroiconsSolid.QuestionMarkCircle
        ] do
       Logger.error(msg)
-      throw(prepare_icon_component("heroicons-solid:question-mark-circle"))
+      Logger.info(icon)
+      throw({:fallback, "heroicons-solid:question-mark-circle"})
     else
       throw(msg)
     end
@@ -354,7 +365,7 @@ defmodule Iconify do
           else:
             File.ls!(path)
             |> Enum.map(fn file ->
-              {class_name(dir, Path.basename(file, ".svg")), Path.join(path, file)}
+              {css_icon_name(dir, Path.basename(file, ".svg")), Path.join(path, file)}
             end)
       end)
       |> IO.inspect()
@@ -378,7 +389,7 @@ defmodule Iconify do
             String.split("#{mod}", ".")
             |> List.last()
 
-          {class_name(icon_name(family), icon_name(icon)), mod}
+          {css_icon_name(icon_name(family), icon_name(icon)), mod}
         end)
       end)
 
@@ -455,15 +466,15 @@ defmodule Iconify do
       "#{@cwd}/assets/node_modules/@iconify/json/json/#{family_name}.json"
       |> IO.inspect(label: "load JSON for #{family_name} icon family")
 
-  defp css_svg(class_name, svg) do
-    ".#{class_name}{--Iy:url(\"data:image/svg+xml;utf8,#{svg |> String.split() |> Enum.join(" ") |> URI.encode(&URI.char_unescaped?(&1)) |> String.replace("%20", " ") |> String.replace("%22", "'")}\");--webkit-mask-image:var(--Iy);mask-image:var(--Iy)}"
+  defp css_svg(icon_name, svg) do
+    "[iconify=\"#{icon_name}\"]{--Iy:url(\"data:image/svg+xml;utf8,#{svg |> String.split() |> Enum.join(" ") |> URI.encode(&URI.char_unescaped?(&1)) |> String.replace("%20", " ") |> String.replace("%22", "'")}\");--webkit-mask-image:var(--Iy);mask-image:var(--Iy)}"
   end
 
   # defp css_svg(class_name, svg) do
   #   ".#{class_name}{content:url(\"data:image/svg+xml;utf8,#{svg |> String.split() |> Enum.join(" ") |> URI.encode(&URI.char_unescaped?(&1)) |> String.replace("%20", " ") |> String.replace("%22", "'")}\")}"
   # end
 
-  defp class_name(family, icon), do: "iconify_#{family}_#{icon}"
+  defp css_icon_name(family, icon), do: "#{family}:#{icon}"
 
   defp family_and_icon(name) do
     name
@@ -488,15 +499,15 @@ defmodule Iconify do
 
   def render_svg_with_css(assigns) do
     ~H"""
-    <div class={"#{css_class()} #{@icon_css_name} #{@class}"} aria-hidden="true" />
+    <div iconify={@icon_name} class={@class} aria-hidden="true" />
     """
 
-    # <div class={"#{css_class()} #{@class}"} style={"--webkit-mask: var(--#{@icon_css_name}); mask: var(--#{@icon_css_name})"} aria-hidden="true" />
+    # <div class={"#{css_class()} #{@class}"} style={"--webkit-mask: var(--#{@icon_name}); mask: var(--#{@icon_name})"} aria-hidden="true" />
   end
 
   # def render_svg_with_css(assigns) do
   #   ~H"""
-  #   <div class={"#{@icon_css_name} #{@class}"} aria-hidden="true" />
+  #   <div class={"#{@icon_name} #{@class}"} aria-hidden="true" />
   #   """
   # end
 end
