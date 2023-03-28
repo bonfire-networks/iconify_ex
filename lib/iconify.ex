@@ -467,7 +467,7 @@ defmodule Iconify do
       |> IO.inspect(label: "load JSON for #{family_name} icon family")
 
   defp css_svg(icon_name, svg) do
-    "[iconify=\"#{icon_name}\"]{--Iy:url(\"data:image/svg+xml;utf8,#{svg |> String.split() |> Enum.join(" ") |> URI.encode(&URI.char_unescaped?(&1)) |> String.replace("%20", " ") |> String.replace("%22", "'")}\");--webkit-mask-image:var(--Iy);mask-image:var(--Iy)}"
+    "[iconify=\"#{icon_name}\"]{--Iy:url(\"data:image/svg+xml;utf8,#{svg |> String.split() |> Enum.join(" ") |> URI.encode(&URI.char_unescaped?(&1)) |> String.replace("%20", " ") |> String.replace("%22", "'")}\");-webkit-mask-image:var(--Iy);mask-image:var(--Iy)}"
   end
 
   # defp css_svg(class_name, svg) do
@@ -502,7 +502,7 @@ defmodule Iconify do
     <div iconify={@icon_name} class={@class} aria-hidden="true" />
     """
 
-    # <div class={"#{css_class()} #{@class}"} style={"--webkit-mask: var(--#{@icon_name}); mask: var(--#{@icon_name})"} aria-hidden="true" />
+    # <div class={"#{css_class()} #{@class}"} style={"-webkit-mask: var(--#{@icon_name}); mask: var(--#{@icon_name})"} aria-hidden="true" />
   end
 
   # def render_svg_with_css(assigns) do

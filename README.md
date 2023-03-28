@@ -37,7 +37,7 @@ If using CSS mode, you'll need to set some default styles that apply to all icon
 ```css
 [iconify] {
   background-color: currentColor;
-  --webkit-mask-size: cover;
+  -webkit-mask-size: cover;
   mask-size: cover;
   min-width: 0.5rem;
   min-height: 0.5rem;
