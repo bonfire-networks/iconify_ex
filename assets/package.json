@@ -1,6 +1,5 @@
 {
-  "dependencies": {
-  },
+  "dependencies": {},
   "optionalDependencies": {
     "@iconify/json": "^2.1.155"
   }
