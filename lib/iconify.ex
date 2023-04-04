@@ -80,6 +80,8 @@ defmodule Iconify do
     src = "#{path}/#{icon_name}.svg"
 
     if not File.exists?(src) do
+      IO.inspect(src, label: "Iconify new icon found")
+
       json_path = json_path(family_name)
 
       svg = svg(json_path, icon_name)
