@@ -23,7 +23,7 @@ if Code.ensure_loaded?(Surface) do
 
       class = Surface.AST.find_attribute_value(attributes, :class) || ""
 
-      icon = icon_name(static_props)
+      icon = prepare_icon_name(static_props)
 
       if is_nil(svg) do
         case Iconify.prepare(%{icon: icon}) do
@@ -64,34 +64,48 @@ if Code.ensure_loaded?(Surface) do
       end
     end
 
-    def svg_icon(%{svg: svg}) when is_binary(svg) do
+    defmacro icon_name(icon) do
+      name = prepare_icon_name(icon)
+
+      Iconify.prepare(%{icon: name}, :css)
+      |> IO.inspect(label: "prepared icon")
+
+      name
+    end
+
+    defp svg_icon(%{svg: svg}) when is_binary(svg) do
       svg
     end
 
-    def svg_icon(%{iconify: "<svg" <> _ = svg}) do
+    defp svg_icon(%{iconify: "<svg" <> _ = svg}) do
       svg
     end
 
-    def svg_icon(_) do
+    defp svg_icon(_) do
       nil
     end
 
-    def icon_name(%{iconify: icon})
-        when is_binary(icon) or (is_atom(icon) and not is_nil(icon)) do
+    defp prepare_icon_name(%{iconify: icon})
+         when is_binary(icon) or (is_atom(icon) and not is_nil(icon)) do
       icon
     end
 
-    def icon_name(%{solid: icon})
-        when is_binary(icon) or (is_atom(icon) and not is_nil(icon)) do
+    defp prepare_icon_name(%{solid: icon})
+         when is_binary(icon) or (is_atom(icon) and not is_nil(icon)) do
       "heroicons-solid:#{icon}"
     end
 
-    def icon_name(%{outline: icon})
-        when is_binary(icon) or (is_atom(icon) and not is_nil(icon)) do
+    defp prepare_icon_name(%{outline: icon})
+         when is_binary(icon) or (is_atom(icon) and not is_nil(icon)) do
       "heroicons-outline:#{icon}"
     end
 
-    def icon_name(_assigns) do
+    defp prepare_icon_name(icon)
+         when is_binary(icon) or (is_atom(icon) and not is_nil(icon)) do
+      icon
+    end
+
+    defp prepare_icon_name(_assigns) do
       ""
     end
 

@@ -17,11 +17,11 @@ defmodule Iconify do
     end
   end
 
-  def prepare(assigns) do
+  def prepare(assigns, mode \\ nil) do
     icon = Map.fetch!(assigns, :icon)
 
     # workaround for emojis not playing nice in CSS but also being bulky
-    mode = if String.contains?(to_string(icon), ["emoji", "noto"]), do: :img, else: mode()
+    mode = if String.contains?(to_string(icon), ["emoji", "noto"]), do: :img, else: mode || mode()
 
     case mode do
       :img ->
