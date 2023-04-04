@@ -341,6 +341,7 @@ defmodule Iconify do
 
   defp icon_error(icon, msg) do
     if icon not in [
+         "question-mark-circle",
          "heroicons-solid:question-mark-circle",
          Iconify.HeroiconsSolid.QuestionMarkCircle
        ] do
