@@ -25,6 +25,13 @@ if Code.ensure_loaded?(Surface) do
 
       icon = prepare_icon_name(static_props)
 
+      # TODO? simply include the phoenix component like so instead of duplicating logic, see https://github.com/surface-ui/surface/pull/685#issuecomment-1505978390
+      # quote_surface caller: meta.caller do
+      #   ~F"""
+      #   <Iconify.iconify class={^class} icon={^icon} />
+      #   """
+      # end
+
       if is_nil(svg) do
         case Iconify.prepare(%{icon: icon}) do
           {:css, _fun, %{icon_name: icon_name}} ->
