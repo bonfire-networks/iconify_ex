@@ -37,7 +37,7 @@ defmodule Iconify.MixProject do
     [
       {:ex_doc, ">= 0.0.0", only: :dev, runtime: false},
       {:jason, "~> 1.3"},
-      {:phoenix_live_view, "<= 0.18.4"},
+      {:phoenix_live_view, "~> 0.18.18"},
       {:surface, "~> 0.9.4", optional: true},
       {:recase, "~> 0.5"},
       {:floki, ">= 0.30.0", only: :test}
