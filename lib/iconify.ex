@@ -413,7 +413,7 @@ defmodule Iconify do
   end
 
   defp write_css(icons_dir \\ static_path(), css) do
-    File.write!("#{icons_dir}/icons.css", Enum.join(css, "\n"))
+    File.write!("#{icons_dir}/icons.css", Enum.join(css, "\n") <> "\n")
   end
 
   defp maybe_append_css(file_or_icons_dir \\ static_path(), icon_css_name, css)
@@ -440,7 +440,7 @@ defmodule Iconify do
   end
 
   defp append_css(file, css) when is_binary(css) do
-    IO.write(file, "\n#{css}")
+    IO.write(file, "#{css}\n")
   end
 
   defp exists_in_css?(file_or_icons_dir \\ static_path(), icon_css_name)
