@@ -14,7 +14,7 @@ It can be configured to embed the icons one of three ways:
 ```elixir
 def deps do
   [
-    {:iconify_ex, "~> 0.0.2"}
+    {:iconify_ex, "~> 0.1.0"}
   ]
 end
 ```
