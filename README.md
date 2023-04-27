@@ -2,7 +2,7 @@
 
 Phoenix helpers for using 100,000+ SVG icons from 100+ icon sets compiled by [Iconify](https://icon-sets.iconify.design) (visit that site to browse the sets available and preview the icons)
 
-It copies only the icons you use from the iconify library into your project, preparing them on-the-fly when you first use an icon in a view or component, during development.
+It copies only the icons you use from the iconify library into your project, preparing them on-the-fly when you first use an icon in a view or component (either at compile time if using the Surface component, or on the first run during development).
 
 It can be configured to embed the icons one of three ways:
 - `css` (default): generate a single CSS file containing SVGs of all the icons used 
