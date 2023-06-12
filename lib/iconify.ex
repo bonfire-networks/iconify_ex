@@ -221,7 +221,7 @@ defmodule Iconify do
     icons_dir = static_path()
     css_path = "#{icons_dir}/icons.css"
 
-    with {:ok, file} <- File.open(css_path, [:read, :append, :utf8]) do
+    with {:ok, file} <- file_open(css_path, [:read, :append, :utf8]) do
       if !exists_in_css?(file, icon_css_name) do
         json_path = json_path(family_name)
 
@@ -233,6 +233,25 @@ defmodule Iconify do
 
         append_css(file, css)
       end
+    end
+  end
+
+  defp file_open(path, args) do
+    # TODO: put args in key?
+    key = "iconify_ex_file_#{path}"
+
+    case Process.get(key) do
+      nil ->
+        # Logger.debug("open #{path}")
+
+        with {:ok, file} <- File.open(path, args) do
+          Process.put(key, file)
+          {:ok, file}
+        end
+
+      io_device ->
+        # Logger.debug("use available #{path}")
+        {:ok, io_device}
     end
   end
 
@@ -458,10 +477,20 @@ defmodule Iconify do
   end
 
   defp exists_in_css?(file, icon_css_name) do
-    # TODO: optimise by reading line by line
-    if String.contains?(IO.read(file, :all), "\"#{icon_css_name}\"") do
-      true
+    key = "iconify_ex_contents_#{path}"
+
+    case Process.get(key) do
+      nil ->
+        # Logger.debug("read #{path}")
+        contents = IO.read(file, :all)
+        Process.put(key, contents)
+        contents
+
+      contents ->
+        # Logger.debug("use cached #{path}")
+        contents
     end
+    |> String.contains?("\"#{icon_css_name}\"")
   end
 
   defp json_path(family_name),
