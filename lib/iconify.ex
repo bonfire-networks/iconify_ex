@@ -182,6 +182,34 @@ defmodule Iconify do
       raise other
   end
 
+  def create_component_for_svg(family_name, icon_name, svg_code) do
+    icon_name = String.trim_trailing(icon_name, "-icon")
+    component_path = "#{path()}/#{family_name}"
+    component_filepath = "#{component_path}/#{icon_name}.ex"
+    module_name = module_name(family_name, icon_name)
+
+    module_atom =
+      "Elixir.#{module_name}"
+      |> String.to_atom()
+
+    # |> IO.inspect(label: "module_atom")
+
+    component_content = build_component(module_name, full_svg_for_component(svg_code, icon_name))
+
+    File.mkdir_p(component_path)
+    File.write!(component_filepath, component_content)
+
+    Code.compile_file(component_filepath)
+
+    module_atom
+  catch
+    {:fallback, fallback_icon} when is_binary(fallback_icon) ->
+      prepare_icon_component(fallback_icon)
+
+    other ->
+      raise other
+  end
+
   def list_components do
     with {:ok, modules} <-
            :application.get_key(
@@ -236,6 +264,20 @@ defmodule Iconify do
     end
   end
 
+  def add_icon_to_css(icon_css_name, svg_code) do
+    icons_dir = static_path()
+    css_path = "#{icons_dir}/icons.css"
+
+    with {:ok, file} <- file_open(css_path, [:read, :append, :utf8]) do
+      if !exists_in_css?(file, icon_css_name) do
+        css = css_svg(icon_css_name, clean_svg(svg_code))
+        # |> IO.inspect()
+
+        append_css(file, css)
+      end
+    end
+  end
+
   defp file_open(path, args) do
     # TODO: put args in key?
     key = "iconify_ex_file_#{path}"
@@ -265,6 +307,14 @@ defmodule Iconify do
     {svg, w, h} = get_svg(json_path, icon_name)
 
     "<svg data-icon=\"#{icon_name}\" xmlns=\"http://www.w3.org/2000/svg\" role=\"img\" class={@class} viewBox=\"0 0 #{w} #{h}\" aria-hidden=\"true\">#{clean_svg(svg, icon_name)}</svg>"
+  end
+
+  defp full_svg_for_component(svg_code, icon_name) do
+    String.replace(
+      clean_svg(svg_code, icon_name),
+      "<svg",
+      "<svg data-icon=\"#{icon_name}\" class={@class}"
+    )
   end
 
   defp clean_svg(svg, _icon_name \\ nil) do
