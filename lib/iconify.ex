@@ -250,7 +250,7 @@ defmodule Iconify do
     css_path = "#{icons_dir}/icons.css"
 
     with {:ok, file} <- file_open(css_path, [:read, :append, :utf8]) do
-      if !exists_in_css?(file, icon_css_name) do
+      if !exists_in_css_file?(css_path, file, icon_css_name) do
         json_path = json_path(family_name)
 
         svg = svg(json_path, icon_name)
@@ -269,7 +269,7 @@ defmodule Iconify do
     css_path = "#{icons_dir}/icons.css"
 
     with {:ok, file} <- file_open(css_path, [:read, :append, :utf8]) do
-      if !exists_in_css?(file, icon_css_name) do
+      if !exists_in_css_file?(css_path, file, icon_css_name) do
         css = css_svg(icon_css_name, clean_svg(svg_code))
         # |> IO.inspect()
 
@@ -518,7 +518,7 @@ defmodule Iconify do
     css_path = "#{icons_dir}/icons.css"
 
     with {:ok, file} <- File.open(css_path, [:read]) do
-      exists_in_css?(file, icon_css_name)
+      exists_in_css_file?(css_path, file, icon_css_name)
     else
       e ->
         IO.warn(e)
@@ -526,8 +526,8 @@ defmodule Iconify do
     end
   end
 
-  defp exists_in_css?(file, icon_css_name) do
-    key = "iconify_ex_contents_#{path}"
+  defp exists_in_css_file?(css_path, file, icon_css_name) do
+    key = "iconify_ex_contents_#{css_path}"
 
     case Process.get(key) do
       nil ->
