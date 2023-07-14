@@ -1,5 +1,6 @@
 defmodule Iconify do
   use Phoenix.Component
+  use Arrows
   import Phoenix.LiveView.TagEngine
   # import Phoenix.LiveView.HTMLEngine
   require Logger
@@ -8,7 +9,7 @@ defmodule Iconify do
   @cwd File.cwd!()
 
   def iconify(assigns) do
-    with {_, fun, assigns} <- prepare(assigns) do
+    with {_, fun, assigns} <- prepare(assigns, assigns[:mode]) do
       component(
         fun,
         assigns,
@@ -20,10 +21,10 @@ defmodule Iconify do
   def prepare(assigns, mode \\ nil) do
     icon = Map.fetch!(assigns, :icon)
 
-    # workaround for emojis not playing nice in CSS but also being bulky
-    mode = if String.contains?(to_string(icon), ["emoji", "noto"]), do: :img, else: mode || mode()
+    case mode || mode(emoji?(icon)) do
+      :img_url ->
+        maybe_prepare_icon_img(icon)
 
-    case mode do
       :img ->
         src = prepare_icon_img(icon)
 
@@ -32,11 +33,27 @@ defmodule Iconify do
       :inline ->
         {:inline, &prepare_icon_component(icon).render/1, assigns}
 
-      # :css by default
+      :data ->
+        {:data, prepare_icon_data(icon)}
+
       _ ->
+        # :css by default
         icon_name = prepare_icon_css(icon)
 
         {:css, &render_svg_with_css/1, assigns |> Enum.into(%{icon_name: icon_name})}
+    end
+  end
+
+  def manual(icon, opts \\ nil) do
+    assigns = Map.put(opts[:assigns] || %{}, :icon, icon)
+    mode = opts[:mode]
+
+    case prepare(assigns, opts[:mode]) do
+      {_, fun, assigns} when is_function(fun) ->
+        fun.(assigns)
+
+      {_, other} ->
+        other
     end
   end
 
@@ -53,11 +70,36 @@ defmodule Iconify do
 
   def static_url, do: Application.get_env(:iconify_ex, :generated_icon_static_url, "")
 
-  def mode, do: Application.get_env(:iconify_ex, :mode, false)
+  defp mode(true), do: :img
+  defp mode(_), do: Application.get_env(:iconify_ex, :mode, false)
   def using_svg_inject?, do: Application.get_env(:iconify_ex, :using_svg_inject, false)
   # def css_class, do: Application.get_env(:iconify_ex, :css_class, "iconify_icon")
 
+  def emoji?(icon),
+    do:
+      String.starts_with?(to_string(icon), [
+        "emoji",
+        "noto",
+        "openmoji",
+        "twemoji",
+        "fluent-emoji",
+        "fxemoji",
+        "streamline-emoji"
+      ])
+
   defp prepare_icon_img(icon) do
+    with img when is_binary(img) <- maybe_prepare_icon_img(icon) do
+      img
+    else
+      _ ->
+        icon_error(icon, "Could not process family_and_icon")
+    end
+  catch
+    {:fallback, fallback_icon} when is_binary(fallback_icon) -> prepare_icon_img(fallback_icon)
+    other -> raise other
+  end
+
+  defp maybe_prepare_icon_img(icon) do
     with [family_name, icon_name] <- family_and_icon(icon) do
       icon_name = String.trim_trailing(icon_name, "-icon")
 
@@ -68,11 +110,8 @@ defmodule Iconify do
       "#{static_url()}/#{family_name}/#{icon_name}.svg"
     else
       _ ->
-        icon_error(icon, "Could not process family_and_icon")
+        nil
     end
-  catch
-    {:fallback, fallback_icon} when is_binary(fallback_icon) -> prepare_icon_img(fallback_icon)
-    other -> raise other
   end
 
   defp do_prepare_icon_img(family_name, icon_name) do
@@ -225,6 +264,37 @@ defmodule Iconify do
     end
   end
 
+  defp prepare_icon_data(icon) do
+    with [family_name, icon_name] <- family_and_icon(icon) do
+      icon_name = String.trim_trailing(icon_name, "-icon")
+
+      icon_css_name = css_icon_name(family_name, icon_name)
+
+      do_prepare_icon_data(family_name, icon_name, icon_css_name)
+    else
+      _ ->
+        icon_error(icon, "Could not process family_and_icon")
+    end
+  catch
+    {:fallback, fallback_icon} when is_binary(fallback_icon) -> nil
+    other -> raise other
+  end
+
+  defp do_prepare_icon_data(family_name, icon_name, icon_css_name) do
+    icons_dir = static_path()
+    css_path = "#{icons_dir}/icons.css"
+
+    with {:ok, file} <- file_open(css_path, [:read, :utf8]) do
+      case extract_from_css_file(css_path, file, icon_css_name) do
+        nil ->
+          if dev_env?(), do: do_prepare_icon_css(family_name, icon_name, icon_css_name)
+
+        svg_data ->
+          svg_data
+      end
+    end
+  end
+
   defp prepare_icon_css(icon) do
     with [family_name, icon_name] <- family_and_icon(icon) do
       icon_name = String.trim_trailing(icon_name, "-icon")
@@ -256,10 +326,16 @@ defmodule Iconify do
         svg = svg(json_path, icon_name)
         # |> IO.inspect()
 
-        css = css_svg(icon_css_name, svg)
+        data_svg = data_svg(icon_name, svg)
+
+        css = css_with_data_svg(icon_name, data_svg)
+
+        # css_svg(icon_css_name, svg)
         # |> IO.inspect()
 
         append_css(file, css)
+
+        data_svg
       end
     end
   end
@@ -280,7 +356,7 @@ defmodule Iconify do
 
   defp file_open(path, args) do
     # TODO: put args in key?
-    key = "iconify_ex_file_#{path}"
+    key = "iconify_ex_file_#{path}_#{inspect(args)}"
 
     case Process.get(key) do
       nil ->
@@ -526,7 +602,7 @@ defmodule Iconify do
     end
   end
 
-  defp exists_in_css_file?(css_path, file, icon_css_name) do
+  defp read_css_file(css_path, file) do
     key = "iconify_ex_contents_#{css_path}"
 
     case Process.get(key) do
@@ -540,7 +616,21 @@ defmodule Iconify do
         # Logger.debug("use cached #{path}")
         contents
     end
+  end
+
+  defp exists_in_css_file?(css_path, file, icon_css_name) do
+    read_css_file(css_path, file)
     |> String.contains?("\"#{icon_css_name}\"")
+  end
+
+  defp extract_from_css_file(css_path, file, icon_css_name) do
+    text = read_css_file(css_path, file)
+
+    Regex.run(
+      ~r/\[iconify="#{icon_css_name}"]{--Iy:url\("data:image\/svg\+xml;utf8,([^"]+)/,
+      text,
+      capture: :first
+    )
   end
 
   defp json_path(family_name),
@@ -549,12 +639,21 @@ defmodule Iconify do
       |> IO.inspect(label: "load JSON for #{family_name} icon family")
 
   defp css_svg(icon_name, svg) do
-    "[iconify=\"#{icon_name}\"]{--Iy:url(\"data:image/svg+xml;utf8,#{svg |> String.split() |> Enum.join(" ") |> URI.encode(&URI.char_unescaped?(&1)) |> String.replace("%20", " ") |> String.replace("%22", "'")}\");-webkit-mask-image:var(--Iy);mask-image:var(--Iy)}"
+    css_with_data_svg(icon_name, data_svg(icon_name, svg))
   end
 
-  # defp css_svg(class_name, svg) do
-  #   ".#{class_name}{content:url(\"data:image/svg+xml;utf8,#{svg |> String.split() |> Enum.join(" ") |> URI.encode(&URI.char_unescaped?(&1)) |> String.replace("%20", " ") |> String.replace("%22", "'")}\")}"
-  # end
+  defp css_with_data_svg(icon_name, data_svg) do
+    "[iconify=\"#{icon_name}\"]{--Iy:url(\"data:image/svg+xml;utf8,#{data_svg}\");-webkit-mask-image:var(--Iy);mask-image:var(--Iy)}"
+  end
+
+  defp data_svg(icon_name, svg) do
+    svg
+    |> String.split()
+    |> Enum.join(" ")
+    |> URI.encode(&URI.char_unescaped?(&1))
+    |> String.replace("%20", " ")
+    |> String.replace("%22", "'")
+  end
 
   defp css_icon_name(family, icon), do: "#{family}:#{icon}"
 
@@ -591,5 +690,76 @@ defmodule Iconify do
   #   ~H"""
   #   <div class={"#{@icon_name} #{@class}"} aria-hidden="true" />
   #   """
+  # end
+
+  def maybe_set_favicon(socket, "<svg" <> _ = icon) do
+    socket
+    |> data_image_svg()
+    |> Phx.Live.Favicon.set_dynamic("svg", icon)
+  end
+
+  def maybe_set_favicon(socket, icon) when is_binary(icon) do
+    if String.contains?(icon, ":") do
+      if Iconify.emoji?(icon) do
+        maybe_set_favicon_emoji(socket, icon)
+      else
+        IO.inspect(icon, label: "not emojiii")
+        do_set_favicon_iconify(socket, icon)
+      end
+    else
+      IO.inspect(icon, label: "a manual emojiii or other text")
+      do_set_favicon_text(socket, icon)
+    end
+  end
+
+  def maybe_set_favicon(socket, _icon) do
+    socket
+    |> Phx.Live.Favicon.reset()
+  end
+
+  defp maybe_set_favicon_emoji(socket, icon) do
+    case Iconify.manual(icon, mode: :img_url) do
+      img when is_binary(img) ->
+        img
+        |> IO.inspect(label: "use emojiii from URL")
+        |> Phx.Live.Favicon.set_dynamic(socket, "svg", ...)
+
+      _ ->
+        case Code.ensure_loaded?(Emote) and
+               String.split(icon, ":", parts: 2)
+               |> List.last()
+               |> Recase.to_snake()
+               |> Emote.lookup() do
+          emoji when is_binary(emoji) ->
+            IO.inspect(emoji, label: "emojiii in emote")
+            do_set_favicon_text(socket, emoji)
+
+          _ ->
+            IO.inspect(icon, label: "no such emojiii")
+
+            socket
+            |> Phx.Live.Favicon.reset()
+        end
+    end
+  end
+
+  defp do_set_favicon_text(socket, text) do
+    "<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>#{text}</text></svg>"
+    |> data_image_svg()
+    |> Phx.Live.Favicon.set_dynamic(socket, "svg", ...)
+  end
+
+  defp do_set_favicon_iconify(socket, icon) do
+    Iconify.manual(icon, mode: :data)
+    |> IO.inspect(label: "iconify - not emojiii")
+    |> data_image_svg()
+    |> Phx.Live.Favicon.set_dynamic(socket, "svg", ...)
+  end
+
+  defp data_image_svg(svg), do: "data:image/svg+xml;utf8,#{svg}"
+
+  # defp do_set_favicon_text(socket, icon) do
+  # TODO
+  #   <link rel="icon" href="data:image/svg+xml,&lt;svg viewBox=%220 0 100 100%22 xmlns=%22http://www.w3.org/2000/svg%22&gt;&lt;text y=%22.9em%22 font-size=%2290%22&gt;⏰&lt;/text&gt;&lt;rect x=%2260.375%22 y=%2238.53125%22 width=%2239.625%22 height=%2275.28125%22 rx=%226.25%22 ry=%226.25%22 style=%22fill: red;%22&gt;&lt;/rect&gt;&lt;text x=%2293.75%22 y=%2293.75%22 font-size=%2260%22 text-anchor=%22end%22 alignment-baseline=%22text-bottom%22 fill=%22white%22 style=%22font-weight: 400;%22&gt;1&lt;/text&gt;&lt;/svg&gt;">
   # end
 end
