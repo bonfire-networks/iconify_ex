@@ -23,7 +23,7 @@ defmodule Iconify do
 
     case mode || mode(emoji?(icon)) do
       :img_url ->
-        maybe_prepare_icon_img(icon)
+        {:img, maybe_prepare_icon_img(icon)}
 
       :img ->
         src = prepare_icon_img(icon)
