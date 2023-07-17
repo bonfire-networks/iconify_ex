@@ -3,9 +3,9 @@
 
 
 "@iconify/json@^2.1.155":
-  version "2.2.89"
-  resolved "https://registry.yarnpkg.com/@iconify/json/-/json-2.2.89.tgz#54ff205a7676b6dad219a9c0ad98539c8e805b14"
-  integrity sha512-6WXiyhK4gfDSDbvHeQrt1aXtTksRtLLsmloYr46H/7tACmtnLX+q5EdWOuHhsZ7I798zLysloOflvTPHrZryoA==
+  version "2.2.91"
+  resolved "https://registry.yarnpkg.com/@iconify/json/-/json-2.2.91.tgz#64215b3cd247893769fd4aef9baa538490c901a7"
+  integrity sha512-qsvHrC9I4KiUWcJRb3GDqYVpLaVG2Gvm+S/WMls79OaKPDQGXc5g4i5uhdEqg+qFDVOms3ItpJVU0IboAG1jeQ==
   dependencies:
     "@iconify/types" "*"
     pathe "^1.1.0"

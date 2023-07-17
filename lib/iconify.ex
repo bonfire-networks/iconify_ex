@@ -326,11 +326,9 @@ defmodule Iconify do
         svg = svg(json_path, icon_name)
         # |> IO.inspect()
 
-        data_svg = data_svg(icon_name, svg)
+        data_svg = data_svg(svg)
 
-        css = css_with_data_svg(icon_name, data_svg)
-
-        # css_svg(icon_css_name, svg)
+        css = css_with_data_svg(icon_css_name, data_svg)
         # |> IO.inspect()
 
         append_css(file, css)
@@ -639,14 +637,14 @@ defmodule Iconify do
       |> IO.inspect(label: "load JSON for #{family_name} icon family")
 
   defp css_svg(icon_name, svg) do
-    css_with_data_svg(icon_name, data_svg(icon_name, svg))
+    css_with_data_svg(icon_name, data_svg(svg))
   end
 
   defp css_with_data_svg(icon_name, data_svg) do
     "[iconify=\"#{icon_name}\"]{--Iy:url(\"data:image/svg+xml;utf8,#{data_svg}\");-webkit-mask-image:var(--Iy);mask-image:var(--Iy)}"
   end
 
-  defp data_svg(icon_name, svg) do
+  defp data_svg(svg) do
     svg
     |> String.split()
     |> Enum.join(" ")
