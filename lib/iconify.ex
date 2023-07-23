@@ -422,7 +422,7 @@ defmodule Iconify do
         else
           icon_error(
             icon_name,
-            "No icon named `#{icon_name}` found in this icon set. Icons available include: #{Enum.join(Map.keys(icons), ", ")}"
+            "No icon named `#{icon_name}` found in icon set #{json_filepath} - Icons available include: #{Enum.join(Map.keys(icons), ", ")}"
           )
         end
     end
