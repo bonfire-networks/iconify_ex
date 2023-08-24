@@ -703,11 +703,11 @@ defmodule Iconify do
       if Iconify.emoji?(icon) do
         maybe_set_favicon_emoji(socket, icon)
       else
-        IO.inspect(icon, label: "not emojiii")
+        # IO.inspect(icon, label: "not emojiii")
         do_set_favicon_iconify(socket, icon)
       end
     else
-      IO.inspect(icon, label: "a manual emojiii or other text")
+      # IO.inspect(icon, label: "a manual emojiii or other text")
       do_set_favicon_text(socket, icon)
     end
   end
@@ -721,7 +721,7 @@ defmodule Iconify do
     case Iconify.manual(icon, mode: :img_url) do
       img when is_binary(img) ->
         img
-        |> IO.inspect(label: "use emojiii from URL")
+        # |> IO.inspect(label: "use emojiii from URL")
         |> Phx.Live.Favicon.set_dynamic(socket, "svg", ...)
 
       _ ->
@@ -731,11 +731,11 @@ defmodule Iconify do
                |> Recase.to_snake()
                |> Emote.lookup() do
           emoji when is_binary(emoji) ->
-            IO.inspect(emoji, label: "emojiii in emote")
+            # IO.inspect(emoji, label: "emojiii in emote")
             do_set_favicon_text(socket, emoji)
 
           _ ->
-            IO.inspect(icon, label: "no such emojiii")
+            # IO.inspect(icon, label: "no such emojiii")
 
             socket
             |> Phx.Live.Favicon.reset()
@@ -751,7 +751,7 @@ defmodule Iconify do
 
   defp do_set_favicon_iconify(socket, icon) do
     Iconify.manual(icon, mode: :data)
-    |> IO.inspect(label: "iconify - not emojiii")
+    # |> IO.inspect(label: "iconify - not emojiii")
     |> data_image_svg()
     |> Phx.Live.Favicon.set_dynamic(socket, "svg", ...)
   end
