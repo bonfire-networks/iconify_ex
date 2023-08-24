@@ -13,7 +13,7 @@ if Code.ensure_loaded?(Surface) do
     # pass SVG markup directly
     prop svg, :string, default: nil, required: false, static: true
 
-    prop class, :css_class, default: "w-4 h-4"
+    prop class, :css_class, default: nil
 
     def expand(attributes, _content, meta) do
       static_props =
@@ -21,7 +21,7 @@ if Code.ensure_loaded?(Surface) do
 
       svg = svg_icon(static_props)
 
-      class = Surface.AST.find_attribute_value(attributes, :class) || ""
+      class = Surface.AST.find_attribute_value(attributes, :class) || Application.get_env(:iconify_ex, :default_class, "w-4 h-4")
 
       icon = prepare_icon_name(static_props)
 
