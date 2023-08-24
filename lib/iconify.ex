@@ -19,6 +19,8 @@ defmodule Iconify do
   end
 
   def prepare(assigns, mode \\ nil) do
+    assigns = Map.put_new_lazy(assigns, :class, fn -> Application.get_env(:iconify_ex, :default_class, "w-4 h-4") end)
+
     icon = Map.fetch!(assigns, :icon)
 
     case mode || mode(emoji?(icon)) do
