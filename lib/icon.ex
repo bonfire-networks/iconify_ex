@@ -21,7 +21,9 @@ if Code.ensure_loaded?(Surface) do
 
       svg = svg_icon(static_props)
 
-      class = Surface.AST.find_attribute_value(attributes, :class) || Application.get_env(:iconify_ex, :default_class, "w-4 h-4")
+      class =
+        Surface.AST.find_attribute_value(attributes, :class) ||
+          Application.get_env(:iconify_ex, :default_class, "w-4 h-4")
 
       icon = prepare_icon_name(static_props)
 
