@@ -660,10 +660,18 @@ defmodule Iconify do
 
   defp css_icon_name(family, icon), do: "#{family}:#{icon}"
 
-  defp family_and_icon(name) do
+  defp family_and_icon(name) when is_binary(name) do
     name
     |> String.split(":")
     |> Enum.map(&icon_name/1)
+  end
+
+  defp family_and_icon(nil), do: {"heroicons-solid", "question-mark-circle"}
+
+  defp family_and_icon(name) do
+    name
+    |> to_string()
+    |> family_and_icon()
   end
 
   defp icon_name(name) do
