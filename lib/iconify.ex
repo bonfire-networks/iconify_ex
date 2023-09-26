@@ -27,6 +27,11 @@ defmodule Iconify do
     icon = Map.fetch!(assigns, :icon)
 
     case mode || mode(emoji?(icon)) do
+      :set ->
+        href = maybe_prepare_set_icon_img(icon)
+
+        {:set, &render_svg_for_sprite/1, assigns |> Enum.into(%{href: href})}
+
       :img_url ->
         {:img, maybe_prepare_icon_img(icon)}
 
@@ -91,6 +96,94 @@ defmodule Iconify do
         "fxemoji",
         "streamline-emoji"
       ])
+
+  defp maybe_prepare_set_icon_img(icon) do
+    with [family_name, icon_name] <- family_and_icon(icon) do
+      icon_name = String.trim_trailing(icon_name, "-icon")
+
+      if dev_env?() do
+        do_prepare_set_icon_img(family_name, icon_name)
+      end
+
+      "#{static_url()}/#{family_name}.svg##{icon_name}"
+    else
+      _ ->
+        nil
+    end
+  end
+
+  defp do_prepare_set_icon_img(family_name, icon_name) do
+    path = "#{static_path()}"
+    src = "#{path}/#{family_name}.svg"
+
+    if not File.exists?(src) do
+      IO.inspect(src, label: "Iconify new set family icon found: #{family_name}")
+
+      json_path = json_path(family_name)
+
+      svg =
+        svg_for_sprite(json_path, icon_name)
+        # |> IO.inspect()
+
+      File.mkdir_p(path)
+
+      sprite = """
+      <?xml version="1.0" encoding="utf-8"?>
+      <svg xmlns="http://www.w3.org/2000/svg"
+          xmlns:xlink="http://www.w3.org/1999/xlink">
+          <defs>
+            #{svg}
+          </defs>
+      </svg>
+      """
+
+      File.write!(src, sprite)
+
+      IO.inspect(src, label: "Iconify icon added on family sprite: #{family_name}")
+    else
+      sprite_file = File.read!(src)
+
+      case Floki.parse_fragment(sprite_file) do
+        {:ok, content} ->
+          svgs =
+            content
+            |> Floki.find("defs")
+            |> List.first()
+            |> Floki.children()
+
+          # |> IO.inspect
+
+          if Floki.find(svgs, "[id=#{icon_name}]") |> Enum.count() > 0 do
+            IO.inspect(src, label: "Iconify set icon already exists: #{family_name}")
+          else
+            json_path = json_path(family_name)
+
+            svg = svg_for_sprite(json_path, icon_name)
+            # |> IO.inspect()
+
+            File.mkdir_p(path)
+
+            sprite = """
+            <?xml version="1.0" encoding="utf-8"?>
+            <svg xmlns="http://www.w3.org/2000/svg"
+                xmlns:xlink="http://www.w3.org/1999/xlink">
+                <defs>
+                  #{Floki.raw_html(svgs, encode: true, pretty: true)}
+                  #{svg}
+                </defs>
+            </svg>
+            """
+
+            File.write!(src, sprite)
+
+            IO.inspect(src, label: "Iconify icon added on family sprite: #{family_name}")
+          end
+
+        {:error, err} ->
+          IO.inspect(err)
+      end
+    end
+  end
 
   defp prepare_icon_img(icon) do
     with img when is_binary(img) <- maybe_prepare_icon_img(icon) do
@@ -380,6 +473,12 @@ defmodule Iconify do
     {svg, w, h} = get_svg(json_path, icon_name)
 
     "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 #{w} #{h}\">#{clean_svg(svg, icon_name)}</svg>"
+  end
+
+  defp svg_for_sprite(json_path, icon_name) do
+    {svg, w, h} = get_svg(json_path, icon_name)
+
+    "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 #{w} #{h}\" fill=\"currentColor\" aria-hidden=\"true\" id=\"#{icon_name}\">#{clean_svg(svg, icon_name)}</svg>"
   end
 
   defp svg_for_component(json_path, icon_name) do
@@ -676,6 +775,15 @@ defmodule Iconify do
 
   defp icon_name(name) do
     Recase.to_kebab(name)
+  end
+
+  defp render_svg_for_sprite(assigns) do
+    # {_svg, w, h} = get_svg(json_path, icon_name)
+    ~H"""
+    <svg class={@class}>
+      <use href={@href}></use>
+    </svg>
+    """
   end
 
   def render_svg_with_img(assigns) do
