@@ -8,7 +8,7 @@ It can be configured to embed the icons one of three ways:
 - `css` (default): generate a single CSS file containing SVGs of all the icons used 
 - `img` (default for emojis): to create SVG files in your static assets, used to be included with `img` tags and loaded over HTTP (you may want to include [svg-inject](https://github.com/iconfu/svg-inject) on your site to enable styling of the SVGs, e.g. to change their colour)
 - `inline`: to generate a Phoenix Component for each icon used, used to embed the icons as `svg` tags inline in the HTML of your views (meaning the SVG will be included in LiveView diffs)
-- `set`: to generate a Sprite SVG for each family, and used to reference the icons as `use` tag inside of a `svg`.
+- `set`: to generate an SVG sprite set for each family, and reference icons with a `use` tag inside of inline SVGs.
 
 There is also an optional integration of [phoenix_live_favicon](https://github.com/BartOtten/phoenix_live_favicon) so you can set an icon (or emoji) as favicon on a page with `Iconify.maybe_set_favicon(socket, icon_name_or_emoji)`.
 

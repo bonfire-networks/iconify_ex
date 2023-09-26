@@ -4,6 +4,7 @@ if Code.ensure_loaded?(Surface) do
 
     # any icon from iconify: https://icones.js.org
     prop iconify, :string, required: false, static: true
+    prop icon, :string, required: false, static: true
 
     # shorthand for heroicons solid icons
     prop solid, :string, required: false, static: true
@@ -13,6 +14,8 @@ if Code.ensure_loaded?(Surface) do
     # pass SVG markup directly
     prop svg, :string, default: nil, required: false, static: true
 
+    prop mode, :atom, required: false, static: true
+
     prop class, :css_class, default: nil
 
     def expand(attributes, _content, meta) do
@@ -20,12 +23,11 @@ if Code.ensure_loaded?(Surface) do
         Surface.MacroComponent.eval_static_props!(__MODULE__, attributes, meta.caller)
 
       svg = svg_icon(static_props)
+      icon = prepare_icon_name(static_props)
 
       class =
         Surface.AST.find_attribute_value(attributes, :class) ||
           Application.get_env(:iconify_ex, :default_class, "w-4 h-4")
-
-      icon = prepare_icon_name(static_props)
 
       # TODO? simply include the phoenix component like so instead of duplicating logic, see https://github.com/surface-ui/surface/pull/685#issuecomment-1505978390
       # quote_surface caller: meta.caller do
@@ -35,7 +37,7 @@ if Code.ensure_loaded?(Surface) do
       # end
 
       if is_nil(svg) do
-        case Iconify.prepare(%{icon: icon}) do
+        case Iconify.prepare(%{icon: icon}, static_props[:mode]) do
           {:css, _fun, %{icon_name: icon_name}} ->
             # icon_class = "#{Iconify.css_class()} #{icon_css_name} #{class_to_string(class)}" 
 
@@ -61,6 +63,13 @@ if Code.ensure_loaded?(Surface) do
             quote_surface do
               ~F"""
               <{^fun} class={^class} />
+              """
+            end
+
+          {:set, _fun, %{href: href}} ->
+            quote_surface do
+              ~F"""
+              <svg class={^class} aria-hidden="true"><use href={^href} class={^class} /></svg>
               """
             end
         end
@@ -99,6 +108,11 @@ if Code.ensure_loaded?(Surface) do
       icon
     end
 
+    defp prepare_icon_name(%{icon: icon})
+         when is_binary(icon) or (is_atom(icon) and not is_nil(icon)) do
+      icon
+    end
+
     defp prepare_icon_name(%{solid: icon})
          when is_binary(icon) or (is_atom(icon) and not is_nil(icon)) do
       "heroicons-solid:#{icon}"
@@ -114,7 +128,8 @@ if Code.ensure_loaded?(Surface) do
       icon
     end
 
-    defp prepare_icon_name(_assigns) do
+    defp prepare_icon_name(assigns) do
+      IO.inspect(assigns, label: "iconify: icon name not found in assigns")
       ""
     end
 

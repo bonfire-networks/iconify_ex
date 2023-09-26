@@ -28,7 +28,7 @@ defmodule Iconify do
 
     case mode || mode(emoji?(icon)) do
       :set ->
-        href = maybe_prepare_set_icon_img(icon)
+        href = href_for_prepared_set_icon(icon)
 
         {:set, &render_svg_for_sprite/1, assigns |> Enum.into(%{href: href})}
 
@@ -97,7 +97,7 @@ defmodule Iconify do
         "streamline-emoji"
       ])
 
-  defp maybe_prepare_set_icon_img(icon) do
+  defp href_for_prepared_set_icon(icon) do
     with [family_name, icon_name] <- family_and_icon(icon) do
       icon_name = String.trim_trailing(icon_name, "-icon")
 
@@ -110,22 +110,24 @@ defmodule Iconify do
       _ ->
         nil
     end
+  catch
+    {:fallback, fallback_icon} when is_binary(fallback_icon) -> prepare_icon_img(fallback_icon)
+    other -> raise other
   end
 
-  defp do_prepare_set_icon_img(family_name, icon_name) do
+  defp prepare_svg_for_set(family_name, icon_name) do
+    json_path = json_path(family_name)
+
+    svg = svg_for_sprite(json_path, icon_name)
+    # |> IO.inspect()
+  end
+
+  defp do_prepare_set_icon_img(family_name, icon_name, svg \\ nil) do
     path = "#{static_path()}"
     src = "#{path}/#{family_name}.svg"
 
     if not File.exists?(src) do
-      IO.inspect(src, label: "Iconify new set family icon found: #{family_name}")
-
-      json_path = json_path(family_name)
-
-      svg =
-        svg_for_sprite(json_path, icon_name)
-        # |> IO.inspect()
-
-      File.mkdir_p(path)
+      svg = svg || prepare_svg_for_set(family_name, icon_name)
 
       sprite = """
       <?xml version="1.0" encoding="utf-8"?>
@@ -137,13 +139,20 @@ defmodule Iconify do
       </svg>
       """
 
+      File.mkdir_p(path)
       File.write!(src, sprite)
 
-      IO.inspect(src, label: "Iconify icon added on family sprite: #{family_name}")
+      IO.inspect(src,
+        label: "Iconify set created: #{family_name} and icon added on family sprite: #{icon_name}"
+      )
     else
-      sprite_file = File.read!(src)
+      IO.inspect(src, label: "Iconify found existing family icon set: #{family_name}")
 
-      case Floki.parse_fragment(sprite_file) do
+      {:ok, file} = file_open(src, [:read, :write, :utf8])
+
+      case read_file(src, file)
+           # |> IO.inspect
+           |> Floki.parse_fragment() do
         {:ok, content} ->
           svgs =
             content
@@ -154,14 +163,14 @@ defmodule Iconify do
           # |> IO.inspect
 
           if Floki.find(svgs, "[id=#{icon_name}]") |> Enum.count() > 0 do
-            IO.inspect(src, label: "Iconify set icon already exists: #{family_name}")
+            IO.inspect(src, label: "Iconify icon already exists in set: #{icon_name}")
           else
-            json_path = json_path(family_name)
+            IO.inspect(src,
+              label: "Iconify look for icon #{icon_name} in iconify icon set: #{family_name}"
+            )
 
-            svg = svg_for_sprite(json_path, icon_name)
+            svg = svg || prepare_svg_for_set(family_name, icon_name)
             # |> IO.inspect()
-
-            File.mkdir_p(path)
 
             sprite = """
             <?xml version="1.0" encoding="utf-8"?>
@@ -174,7 +183,7 @@ defmodule Iconify do
             </svg>
             """
 
-            File.write!(src, sprite)
+            IO.write(file, sprite)
 
             IO.inspect(src, label: "Iconify icon added on family sprite: #{family_name}")
           end
@@ -347,21 +356,6 @@ defmodule Iconify do
       raise other
   end
 
-  def list_components do
-    with {:ok, modules} <-
-           :application.get_key(
-             Application.get_env(:iconify_ex, :generated_icon_app, :bonfire),
-             :modules
-           ) do
-      modules
-      |> Enum.filter(&String.starts_with?("#{&1}", "Elixir.Iconify"))
-      |> Enum.group_by(fn mod ->
-        String.split("#{mod}", ".", parts: 4)
-        |> Enum.at(2)
-      end)
-    end
-  end
-
   defp prepare_icon_data(icon) do
     with [family_name, icon_name] <- family_and_icon(icon) do
       icon_name = String.trim_trailing(icon_name, "-icon")
@@ -478,7 +472,7 @@ defmodule Iconify do
   defp svg_for_sprite(json_path, icon_name) do
     {svg, w, h} = get_svg(json_path, icon_name)
 
-    "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 #{w} #{h}\" fill=\"currentColor\" aria-hidden=\"true\" id=\"#{icon_name}\">#{clean_svg(svg, icon_name)}</svg>"
+    "<svg id=\"#{icon_name}\" xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 #{w} #{h}\" fill=\"currentColor\" aria-hidden=\"true\">#{clean_svg(svg, icon_name)}</svg>"
   end
 
   defp svg_for_component(json_path, icon_name) do
@@ -594,69 +588,11 @@ defmodule Iconify do
          "heroicons-solid:question-mark-circle",
          Iconify.HeroiconsSolid.QuestionMarkCircle
        ] do
-      Logger.error(msg)
-      Logger.info(icon)
+      Logger.error("iconify: #{inspect(icon)} #{msg}")
       throw({:fallback, "heroicons-solid:question-mark-circle"})
     else
       throw(msg)
     end
-  end
-
-  def generate_css_from_static_files() do
-    icons_dir = static_path()
-
-    icons =
-      File.ls!(icons_dir)
-      |> Enum.flat_map(fn dir ->
-        path = Path.join(icons_dir, dir)
-
-        if File.regular?(path),
-          do: [],
-          else:
-            File.ls!(path)
-            |> Enum.map(fn file ->
-              {css_icon_name(dir, Path.basename(file, ".svg")), Path.join(path, file)}
-            end)
-      end)
-      |> IO.inspect()
-
-    css =
-      Enum.map(icons, fn {name, full_path} ->
-        css_svg(name, File.read!(full_path))
-      end)
-      |> IO.inspect()
-
-    write_css(icons_dir, css)
-  end
-
-  def generate_css_from_components() do
-    icons =
-      list_components()
-      |> Enum.flat_map(fn {family, mods} ->
-        mods
-        |> Enum.map(fn mod ->
-          icon =
-            String.split("#{mod}", ".")
-            |> List.last()
-
-          {css_icon_name(icon_name(family), icon_name(icon)), mod}
-        end)
-      end)
-
-    css =
-      Enum.map(icons, fn {class_name, mod} ->
-        css_svg(
-          class_name,
-          mod.render([])
-          |> Map.get(:static, [])
-          |> Enum.join("")
-          |> String.replace("aria-hidden=\"true\"", "")
-          |> String.replace("class=\"\"", "")
-        )
-      end)
-      |> IO.inspect()
-
-    write_css(css)
   end
 
   defp write_css(icons_dir \\ static_path(), css) do
@@ -704,8 +640,8 @@ defmodule Iconify do
     end
   end
 
-  defp read_css_file(css_path, file) do
-    key = "iconify_ex_contents_#{css_path}"
+  defp read_file(path, file) do
+    key = "iconify_ex_contents_#{path}"
 
     case Process.get(key) do
       nil ->
@@ -721,12 +657,12 @@ defmodule Iconify do
   end
 
   defp exists_in_css_file?(css_path, file, icon_css_name) do
-    read_css_file(css_path, file)
+    read_file(css_path, file)
     |> String.contains?("\"#{icon_css_name}\"")
   end
 
   defp extract_from_css_file(css_path, file, icon_css_name) do
-    text = read_css_file(css_path, file)
+    text = read_file(css_path, file)
 
     Regex.run(
       ~r/\[iconify="#{icon_css_name}"]{--Iy:url\("data:image\/svg\+xml;utf8,([^"]+)/,
@@ -781,7 +717,7 @@ defmodule Iconify do
     # {_svg, w, h} = get_svg(json_path, icon_name)
     ~H"""
     <svg class={@class}>
-      <use href={@href}></use>
+      <use href={@href} class={@class}></use>
     </svg>
     """
   end
@@ -881,4 +817,97 @@ defmodule Iconify do
   # TODO
   #   <link rel="icon" href="data:image/svg+xml,&lt;svg viewBox=%220 0 100 100%22 xmlns=%22http://www.w3.org/2000/svg%22&gt;&lt;text y=%22.9em%22 font-size=%2290%22&gt;⏰&lt;/text&gt;&lt;rect x=%2260.375%22 y=%2238.53125%22 width=%2239.625%22 height=%2275.28125%22 rx=%226.25%22 ry=%226.25%22 style=%22fill: red;%22&gt;&lt;/rect&gt;&lt;text x=%2293.75%22 y=%2293.75%22 font-size=%2260%22 text-anchor=%22end%22 alignment-baseline=%22text-bottom%22 fill=%22white%22 style=%22font-weight: 400;%22&gt;1&lt;/text&gt;&lt;/svg&gt;">
   # end
+
+  def list_components do
+    with {:ok, modules} <-
+           :application.get_key(
+             Application.get_env(:iconify_ex, :generated_icon_app, :bonfire),
+             :modules
+           ) do
+      modules
+      |> Enum.filter(&String.starts_with?("#{&1}", "Elixir.Iconify"))
+      |> Enum.group_by(fn mod ->
+        String.split("#{mod}", ".", parts: 4)
+        |> Enum.at(2)
+      end)
+    end
+  end
+
+  def generate_sets_from_components() do
+    icons = icon_from_components()
+
+    css =
+      Enum.map(icons, fn {family, icon, mod} ->
+        svg =
+          mod.render([])
+          |> Map.get(:static, [])
+          |> Enum.join("")
+          |> String.replace("data-icon=", "id=")
+          |> String.replace("aria-hidden=\"true\"", "")
+          |> String.replace("class=\"\"", "")
+
+        do_prepare_set_icon_img(family, icon, svg)
+      end)
+      |> IO.inspect()
+  end
+
+  def generate_css_from_static_files() do
+    icons_dir = static_path()
+
+    icons =
+      File.ls!(icons_dir)
+      |> Enum.flat_map(fn dir ->
+        path = Path.join(icons_dir, dir)
+
+        if File.regular?(path),
+          do: [],
+          else:
+            File.ls!(path)
+            |> Enum.map(fn file ->
+              {css_icon_name(dir, Path.basename(file, ".svg")), Path.join(path, file)}
+            end)
+      end)
+      |> IO.inspect()
+
+    css =
+      Enum.map(icons, fn {name, full_path} ->
+        css_svg(name, File.read!(full_path))
+      end)
+      |> IO.inspect()
+
+    write_css(icons_dir, css)
+  end
+
+  def generate_css_from_components() do
+    icons = icon_from_components()
+
+    css =
+      Enum.map(icons, fn {family, icon, mod} ->
+        css_svg(
+          css_icon_name(family, icon),
+          mod.render([])
+          |> Map.get(:static, [])
+          |> Enum.join("")
+          |> String.replace("aria-hidden=\"true\"", "")
+          |> String.replace("class=\"\"", "")
+        )
+      end)
+      |> IO.inspect()
+
+    write_css(css)
+  end
+
+  defp icon_from_components do
+    list_components()
+    |> Enum.flat_map(fn {family, mods} ->
+      mods
+      |> Enum.map(fn mod ->
+        icon =
+          String.split("#{mod}", ".")
+          |> List.last()
+
+        {icon_name(family), icon_name(icon), mod}
+      end)
+    end)
+  end
 end
