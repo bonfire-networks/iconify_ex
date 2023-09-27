@@ -148,7 +148,7 @@ defmodule Iconify do
     else
       IO.inspect(src, label: "Iconify found existing family icon set: #{family_name}")
 
-      {:ok, file} = file_open(src, [:read, :write, :utf8])
+      {:ok, file} = file_open(src, [:read, :utf8])
 
       case read_file(src, file)
            # |> IO.inspect
@@ -159,7 +159,6 @@ defmodule Iconify do
             |> Floki.find("defs")
             |> List.first()
             |> Floki.children()
-
           # |> IO.inspect
 
           if Floki.find(svgs, "[id=#{icon_name}]") |> Enum.count() > 0 do
@@ -183,7 +182,8 @@ defmodule Iconify do
             </svg>
             """
 
-            IO.write(file, sprite)
+            File.write!(src, sprite)
+            cache_contents(src, sprite)
 
             IO.inspect(src, label: "Iconify icon added on family sprite: #{family_name}")
           end
@@ -423,7 +423,7 @@ defmodule Iconify do
         css = css_with_data_svg(icon_css_name, data_svg)
         # |> IO.inspect()
 
-        append_css(file, css)
+        append_css(css_path, file, css)
 
         data_svg
       end
@@ -439,7 +439,7 @@ defmodule Iconify do
         css = css_svg(icon_css_name, clean_svg(svg_code))
         # |> IO.inspect()
 
-        append_css(file, css)
+        append_css(css_path, file, css)
       end
     end
   end
@@ -596,34 +596,20 @@ defmodule Iconify do
   end
 
   defp write_css(icons_dir \\ static_path(), css) do
-    File.write!("#{icons_dir}/icons.css", Enum.join(css, "\n") <> "\n")
+    css = Enum.join(css, "\n") <> "\n"
+    path = "#{icons_dir}/icons.css"
+    File.write!(path, css)
+    cache_contents(path, css)
   end
 
-  defp maybe_append_css(file_or_icons_dir \\ static_path(), icon_css_name, css)
-
-  defp maybe_append_css(icons_dir, icon_css_name, css) when is_binary(icons_dir) do
-    css_path = "#{icons_dir}/icons.css"
-
-    with {:ok, file} <- File.open(css_path, [:read, :append, :utf8]) do
-      maybe_append_css(file, icon_css_name, css)
-    end
+  defp append_css(css_path, file, css) when is_list(css) do
+    append_css(css_path, file, Enum.join(css, "\n"))
   end
 
-  defp maybe_append_css(file, icon_css_name, css) do
-    # TODO: optimise by reading line by line
-    if String.contains?(IO.read(file, :all), "\"#{icon_css_name}\"") do
-      :ok
-    else
-      append_css(file, css)
-    end
-  end
-
-  defp append_css(file, css) when is_list(css) do
-    append_css(file, Enum.join(css, "\n"))
-  end
-
-  defp append_css(file, css) when is_binary(css) do
-    IO.write(file, "#{css}\n")
+  defp append_css(css_path, file, css) when is_binary(css) do
+    css = "#{css}\n"
+    IO.write(file, css)
+    cache_contents(css_path, css)
   end
 
   defp exists_in_css?(file_or_icons_dir \\ static_path(), icon_css_name)
@@ -641,19 +627,27 @@ defmodule Iconify do
   end
 
   defp read_file(path, file) do
-    key = "iconify_ex_contents_#{path}"
+    key = cache_contents_key(path)
 
     case Process.get(key) do
       nil ->
         # Logger.debug("read #{path}")
         contents = IO.read(file, :all)
-        Process.put(key, contents)
+        cache_contents(path, contents, key)
         contents
 
       contents ->
         # Logger.debug("use cached #{path}")
         contents
     end
+  end
+
+  defp cache_contents_key(path) do
+    "iconify_ex_contents_#{path}"
+  end
+
+  defp cache_contents(path, contents, key \\ nil) do
+    Process.put(key || cache_contents_key(path), contents)
   end
 
   defp exists_in_css_file?(css_path, file, icon_css_name) do
