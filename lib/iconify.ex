@@ -159,6 +159,7 @@ defmodule Iconify do
             |> Floki.find("defs")
             |> List.first()
             |> Floki.children()
+
           # |> IO.inspect
 
           if Floki.find(svgs, "[id=#{icon_name}]") |> Enum.count() > 0 do
