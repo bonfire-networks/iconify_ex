@@ -18,9 +18,8 @@ defmodule Iconify do
     end
   end
 
-  def prepare(assigns, mode \\ nil)
-
-  def prepare(%{} = assigns, mode) do
+  def prepare(assigns, opts \\ [])
+  def prepare(assigns, opts) when is_map(assigns) and is_list(opts) do
     assigns =
       Map.put_new_lazy(assigns, :class, fn ->
         Application.get_env(:iconify_ex, :default_class, "w-4 h-4")
@@ -28,36 +27,38 @@ defmodule Iconify do
 
     icon = Map.fetch!(assigns, :icon)
 
-    case mode || mode(emoji?(icon)) do
+    case opts[:mode] || mode(emoji?(icon)) do
       :set ->
-        href = href_for_prepared_set_icon(icon)
+        href = href_for_prepared_set_icon(icon, opts)
 
         {:set, &render_svg_for_sprite/1, assigns |> Enum.into(%{href: href})}
 
       :img_url ->
-        maybe_prepare_icon_img(icon)
+        maybe_prepare_icon_img(icon, opts)
 
       :img ->
-        src = prepare_icon_img(icon)
+        src = prepare_icon_img(icon, opts)
 
         {:img, &render_svg_with_img/1, assigns |> Enum.into(%{src: src})}
 
       :inline ->
-        {:inline, &prepare_icon_component(icon).render/1, assigns}
+        {:inline, &prepare_icon_component(icon, opts).render/1, assigns}
 
       :data ->
-        {:data, prepare_icon_data(icon)}
+        {:data, prepare_icon_data(icon, opts)}
 
       _ ->
         # :css by default
-        icon_name = prepare_icon_css(icon)
+        icon_name = prepare_icon_css(icon, opts)
 
         {:css, &render_svg_with_css/1, assigns |> Enum.into(%{icon_name: icon_name})}
     end
   end
-
-  def prepare(icon, mode) when is_binary(icon) do
-    prepare(%{icon: icon}, mode)
+  def prepare(icon, opts) when is_binary(icon) do
+    prepare(%{icon: icon}, opts)
+  end
+  def prepare(icon, mode) when is_atom(mode) do
+    prepare(icon, [mode: mode])
   end
 
   def manual(icon, opts \\ nil) do
@@ -72,6 +73,9 @@ defmodule Iconify do
         other
     end
   end
+
+  # TODO: configurable
+  def fallback_icon, do: "heroicons-solid:question-mark-circle"
 
   def dev_env?, do: Code.ensure_loaded?(Mix)
   def path, do: Application.get_env(:iconify_ex, :generated_icon_modules_path, "./lib/web/icons")
@@ -105,12 +109,12 @@ defmodule Iconify do
         "meteocons"
       ])
 
-  defp href_for_prepared_set_icon(icon) do
+  defp href_for_prepared_set_icon(icon, opts) do
     with [family_name, icon_name] <- family_and_icon(icon) do
       icon_name = String.trim_trailing(icon_name, "-icon")
 
       if dev_env?() do
-        do_prepare_set_icon_img(family_name, icon_name)
+        do_prepare_set_icon_img(family_name, icon_name, opts)
       end
 
       "#{static_url()}/#{family_name}.svg##{icon_name}"
@@ -123,19 +127,19 @@ defmodule Iconify do
     other -> raise other
   end
 
-  defp prepare_svg_for_set(family_name, icon_name) do
+  defp prepare_svg_for_set(family_name, icon_name, opts) do
     json_path = json_path(family_name)
 
-    svg = svg_for_sprite(json_path, icon_name)
+    svg = svg_for_sprite(json_path, icon_name, opts)
     # |> IO.inspect()
   end
 
-  defp do_prepare_set_icon_img(family_name, icon_name, svg \\ nil) do
+  defp do_prepare_set_icon_img(family_name, icon_name, opts \\ []) do
     path = "#{static_path()}"
     src = "#{path}/#{family_name}.svg"
 
     if not File.exists?(src) do
-      svg = svg || prepare_svg_for_set(family_name, icon_name)
+      svg = opts[:svg] || prepare_svg_for_set(family_name, icon_name, opts)
 
       sprite = """
       <?xml version="1.0" encoding="utf-8"?>
@@ -177,7 +181,7 @@ defmodule Iconify do
               label: "Iconify look for icon #{icon_name} in iconify icon set: #{family_name}"
             )
 
-            svg = svg || prepare_svg_for_set(family_name, icon_name)
+            svg = opts[:svg] || prepare_svg_for_set(family_name, icon_name, opts)
             # |> IO.inspect()
 
             sprite = """
@@ -203,8 +207,8 @@ defmodule Iconify do
     end
   end
 
-  defp prepare_icon_img(icon) do
-    with img when is_binary(img) <- maybe_prepare_icon_img(icon) do
+  defp prepare_icon_img(icon, opts \\ []) do
+    with img when is_binary(img) <- maybe_prepare_icon_img(icon, opts) do
       img
     else
       _ ->
@@ -215,12 +219,12 @@ defmodule Iconify do
     other -> raise other
   end
 
-  defp maybe_prepare_icon_img(icon) do
+  defp maybe_prepare_icon_img(icon, opts) do
     with [family_name, icon_name] <- family_and_icon(icon) do
       icon_name = String.trim_trailing(icon_name, "-icon")
 
       if dev_env?() do
-        do_prepare_icon_img(family_name, icon_name)
+        do_prepare_icon_img(family_name, icon_name, opts)
       end
 
       "#{static_url()}/#{family_name}/#{icon_name}.svg"
@@ -230,7 +234,7 @@ defmodule Iconify do
     end
   end
 
-  defp do_prepare_icon_img(family_name, icon_name) do
+  defp do_prepare_icon_img(family_name, icon_name, opts) do
     path = "#{static_path()}/#{family_name}"
     src = "#{path}/#{icon_name}.svg"
 
@@ -239,7 +243,7 @@ defmodule Iconify do
 
       json_path = json_path(family_name)
 
-      svg = svg_as_is(json_path, icon_name)
+      svg = opts[:svg] || svg_as_is(json_path, icon_name, opts)
       # |> IO.inspect()
 
       File.mkdir_p(path)
@@ -251,11 +255,11 @@ defmodule Iconify do
     end
   end
 
-  defp prepare_icon_component(icon \\ "heroicons-solid:question-mark-circle")
+  defp prepare_icon_component(icon \\ fallback_icon(), opts \\ [])
 
-  defp prepare_icon_component(icon) when is_binary(icon) do
+  defp prepare_icon_component(icon, opts) when is_binary(icon) do
     with [family_name, icon_name] <- family_and_icon(icon) do
-      do_prepare_icon_component(family_name, icon_name)
+      do_prepare_icon_component(family_name, icon_name, opts)
     else
       _ ->
         icon_error(icon, "Could not process family_and_icon")
@@ -268,7 +272,7 @@ defmodule Iconify do
       raise other
   end
 
-  defp prepare_icon_component(icon) when is_atom(icon) do
+  defp prepare_icon_component(icon, _opts) when is_atom(icon) do
     if Code.ensure_loaded?(icon) do
       icon
     else
@@ -285,7 +289,7 @@ defmodule Iconify do
       raise other
   end
 
-  defp prepare_icon_component(icon) do
+  defp prepare_icon_component(icon, _opts) do
     icon_error(
       icon,
       "Expected a binary icon name or an icon component module atom, got `#{inspect(icon)}`"
@@ -298,7 +302,7 @@ defmodule Iconify do
       raise other
   end
 
-  defp do_prepare_icon_component(family_name, icon_name) do
+  defp do_prepare_icon_component(family_name, icon_name, opts) do
     icon_name = String.trim_trailing(icon_name, "-icon")
     component_path = "#{path()}/#{family_name}"
     component_filepath = "#{component_path}/#{icon_name}.ex"
@@ -313,10 +317,10 @@ defmodule Iconify do
     if not Code.ensure_loaded?(module_atom) do
       if dev_env?() do
         if not File.exists?(component_filepath) do
-          json_path = json_path(family_name)
 
+          
           component_content =
-            build_component(module_name, svg_for_component(json_path, icon_name))
+            build_component(module_name, svg_for_component(json_path(family_name), icon_name, opts))
 
           File.mkdir_p(component_path)
           File.write!(component_filepath, component_content)
@@ -365,13 +369,13 @@ defmodule Iconify do
       raise other
   end
 
-  defp prepare_icon_data(icon) do
+  defp prepare_icon_data(icon, opts) do
     with [family_name, icon_name] <- family_and_icon(icon) do
       icon_name = String.trim_trailing(icon_name, "-icon")
 
       icon_css_name = css_icon_name(family_name, icon_name)
 
-      do_prepare_icon_data(family_name, icon_name, icon_css_name)
+      do_prepare_icon_data(family_name, icon_name, icon_css_name, opts)
     else
       _ ->
         icon_error(icon, "Could not process family_and_icon")
@@ -381,14 +385,14 @@ defmodule Iconify do
     other -> raise other
   end
 
-  defp do_prepare_icon_data(family_name, icon_name, icon_css_name) do
+  defp do_prepare_icon_data(family_name, icon_name, icon_css_name, opts) do
     icons_dir = static_path()
     css_path = "#{icons_dir}/icons.css"
 
     with {:ok, file} <- file_open(css_path, [:read, :utf8]) do
       case extract_from_css_file(css_path, file, icon_css_name) do
         nil ->
-          if dev_env?(), do: do_prepare_icon_css(family_name, icon_name, icon_css_name)
+          if dev_env?(), do: do_prepare_icon_css(family_name, icon_name, icon_css_name, opts)
 
         svg_data ->
           svg_data
@@ -396,14 +400,14 @@ defmodule Iconify do
     end
   end
 
-  defp prepare_icon_css(icon) do
+  defp prepare_icon_css(icon, opts \\ []) do
     with [family_name, icon_name] <- family_and_icon(icon) do
       icon_name = String.trim_trailing(icon_name, "-icon")
 
       icon_css_name = css_icon_name(family_name, icon_name)
 
       if dev_env?() do
-        do_prepare_icon_css(family_name, icon_name, icon_css_name)
+        do_prepare_icon_css(family_name, icon_name, icon_css_name, opts)
       end
 
       icon_css_name
@@ -416,15 +420,14 @@ defmodule Iconify do
     other -> raise other
   end
 
-  defp do_prepare_icon_css(family_name, icon_name, icon_css_name) do
+  defp do_prepare_icon_css(family_name, icon_name, icon_css_name, opts) do
     icons_dir = static_path()
     css_path = "#{icons_dir}/icons.css"
 
     with {:ok, file} <- file_open(css_path, [:read, :append, :utf8]) do
       if !exists_in_css_file?(css_path, file, icon_css_name) do
-        json_path = json_path(family_name)
 
-        svg = svg(json_path, icon_name)
+        svg = opts[:svg] || svg_as_is(json_path(family_name), icon_name, opts)
         # |> IO.inspect()
 
         data_svg = data_svg(svg)
@@ -445,7 +448,7 @@ defmodule Iconify do
 
     with {:ok, file} <- file_open(css_path, [:read, :append, :utf8]) do
       if !exists_in_css_file?(css_path, file, icon_css_name) do
-        css = css_svg(icon_css_name, clean_svg(svg_code))
+        css = css_svg(icon_css_name, (svg_code))
         # |> IO.inspect()
 
         append_css(css_path, file, css)
@@ -472,14 +475,14 @@ defmodule Iconify do
     end
   end
 
-  defp svg_as_is(json_path, icon_name) do
-    {svg, w, h} = get_svg(json_path, icon_name)
+  defp svg_as_is(json_path, icon_name, opts) do
+    {svg, w, h} = get_svg(json_path, icon_name, opts)
 
     svg_wrap(svg, w, h)
   end
 
-  defp svg(json_path, icon_name) do
-    {svg, w, h} = get_svg(json_path, icon_name)
+  defp svg_clean(json_path, icon_name, opts) do
+    {svg, w, h} = get_svg(json_path, icon_name, opts)
 
     clean_svg(svg, icon_name)
     |> svg_wrap(w, h)
@@ -489,14 +492,14 @@ defmodule Iconify do
     "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 #{w} #{h}\">#{svg}</svg>"
   end
 
-  defp svg_for_sprite(json_path, icon_name) do
-    {svg, w, h} = get_svg(json_path, icon_name)
+  defp svg_for_sprite(json_path, icon_name, opts) do
+    {svg, w, h} = get_svg(json_path, icon_name, opts)
 
-    "<svg id=\"#{icon_name}\" xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 #{w} #{h}\" fill=\"currentColor\" aria-hidden=\"true\">#{clean_svg(svg, icon_name)}</svg>"
+    "<svg id=\"#{icon_name}\" xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 #{w} #{h}\" fill=\"currentColor\" aria-hidden=\"true\">#{svg_as_is(svg, icon_name, opts)}</svg>"
   end
 
-  defp svg_for_component(json_path, icon_name) do
-    {svg, w, h} = get_svg(json_path, icon_name)
+  defp svg_for_component(json_path, icon_name, opts) do
+    {svg, w, h} = get_svg(json_path, icon_name, opts)
 
     "<svg data-icon=\"#{icon_name}\" xmlns=\"http://www.w3.org/2000/svg\" role=\"img\" class={@class} viewBox=\"0 0 #{w} #{h}\" aria-hidden=\"true\">#{clean_svg(svg, icon_name)}</svg>"
   end
@@ -527,26 +530,44 @@ defmodule Iconify do
     end
   end
 
-  defp get_svg(json_filepath, icon_name) do
-    case get_json(json_filepath, icon_name) do
-      json when is_map(json) ->
-        icons = Map.fetch!(json, "icons")
+  defp get_svg(json_filepath, icon_name, opts) do
+    case list_json_svgs(json_filepath, icon_name, opts) do
+      {:ok, json, icons} when is_map(icons) ->
 
-        if Map.has_key?(icons, icon_name) do
-          icon = Map.fetch!(icons, icon_name)
+        if opts[:icon_json] || Map.has_key?(icons, icon_name) do
+          icon = opts[:icon_json] || Map.fetch!(icons, icon_name)
 
-          {Map.fetch!(icon, "body"), Map.get(icon, "width") || Map.get(json, "width") || 16,
-           Map.get(icon, "height") || Map.get(json, "height") || 16}
+          return_svg(json, icon)
         else
           icon_error(
             icon_name,
             "No icon named `#{icon_name}` found in icon set #{json_filepath} - Icons available include: #{Enum.join(Map.keys(icons), ", ")}"
           )
         end
+      _ ->
+        icon_error(
+            icon_name,
+            "No icons found in icon set #{json_filepath}"
+          )
     end
   end
 
-  defp get_json(json_filepath, icon_name) do
+  defp return_svg(json, icon) do
+    {
+      Map.fetch!(icon, "body"), 
+    Map.get(icon, "width") || Map.get(json, "width") || 16,
+    Map.get(icon, "height") || Map.get(json, "height") || 16
+  }
+  end
+
+  defp list_json_svgs(json_filepath, icon_name \\ nil, opts \\ []) do
+    case opts[:json] || get_json(json_filepath, icon_name) do
+      json when is_map(json) ->
+        {:ok, json |> Map.drop(["icons"]), Map.get(json, "icons", %{})}
+    end
+  end
+
+  defp get_json(json_filepath, icon_name \\ nil) do
     with {:ok, data} <- File.read(json_filepath) do
       data
       |> Jason.decode!()
@@ -605,11 +626,11 @@ defmodule Iconify do
   defp icon_error(icon, msg) do
     if icon not in [
          "question-mark-circle",
-         "heroicons-solid:question-mark-circle",
+         fallback_icon(),
          Iconify.HeroiconsSolid.QuestionMarkCircle
        ] do
       Logger.error("iconify: #{inspect(icon)} #{msg}")
-      throw({:fallback, "heroicons-solid:question-mark-circle"})
+      throw({:fallback, fallback_icon()})
     else
       throw(msg)
     end
@@ -832,6 +853,19 @@ defmodule Iconify do
   #   <link rel="icon" href="data:image/svg+xml,&lt;svg viewBox=%220 0 100 100%22 xmlns=%22http://www.w3.org/2000/svg%22&gt;&lt;text y=%22.9em%22 font-size=%2290%22&gt;⏰&lt;/text&gt;&lt;rect x=%2260.375%22 y=%2238.53125%22 width=%2239.625%22 height=%2275.28125%22 rx=%226.25%22 ry=%226.25%22 style=%22fill: red;%22&gt;&lt;/rect&gt;&lt;text x=%2293.75%22 y=%2293.75%22 font-size=%2260%22 text-anchor=%22end%22 alignment-baseline=%22text-bottom%22 fill=%22white%22 style=%22font-weight: 400;%22&gt;1&lt;/text&gt;&lt;/svg&gt;">
   # end
 
+  def prepare_entire_icon_family(family_name, mode \\ nil) do
+     mode = mode || mode(emoji?(family_name)) 
+
+    json_filepath = json_path(family_name)
+
+    case list_json_svgs(json_filepath) do
+      {:ok, json, icons} when is_map(icons) and icons !=%{} ->
+        for {icon_name, icon_json} <- icons do
+          prepare("#{family_name}:#{icon_name}", json: json, icon_json: icon_json, mode: mode)
+        end
+      end
+  end
+
   def list_components do
     with {:ok, modules} <-
            :application.get_key(
@@ -860,7 +894,7 @@ defmodule Iconify do
           |> String.replace("aria-hidden=\"true\"", "")
           |> String.replace("class=\"\"", "")
 
-        do_prepare_set_icon_img(family, icon, svg)
+        do_prepare_set_icon_img(family, icon, svg: svg)
       end)
       |> IO.inspect()
   end
