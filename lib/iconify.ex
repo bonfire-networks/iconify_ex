@@ -19,6 +19,7 @@ defmodule Iconify do
   end
 
   def prepare(assigns, opts \\ [])
+
   def prepare(assigns, opts) when is_map(assigns) and is_list(opts) do
     assigns =
       Map.put_new_lazy(assigns, :class, fn ->
@@ -54,11 +55,13 @@ defmodule Iconify do
         {:css, &render_svg_with_css/1, assigns |> Enum.into(%{icon_name: icon_name})}
     end
   end
+
   def prepare(icon, opts) when is_binary(icon) do
     prepare(%{icon: icon}, opts)
   end
+
   def prepare(icon, mode) when is_atom(mode) do
-    prepare(icon, [mode: mode])
+    prepare(icon, mode: mode)
   end
 
   def manual(icon, opts \\ nil) do
@@ -317,10 +320,11 @@ defmodule Iconify do
     if not Code.ensure_loaded?(module_atom) do
       if dev_env?() do
         if not File.exists?(component_filepath) do
-
-          
           component_content =
-            build_component(module_name, svg_for_component(json_path(family_name), icon_name, opts))
+            build_component(
+              module_name,
+              svg_for_component(json_path(family_name), icon_name, opts)
+            )
 
           File.mkdir_p(component_path)
           File.write!(component_filepath, component_content)
@@ -426,7 +430,6 @@ defmodule Iconify do
 
     with {:ok, file} <- file_open(css_path, [:read, :append, :utf8]) do
       if !exists_in_css_file?(css_path, file, icon_css_name) do
-
         svg = opts[:svg] || svg_as_is(json_path(family_name), icon_name, opts)
         # |> IO.inspect()
 
@@ -448,7 +451,7 @@ defmodule Iconify do
 
     with {:ok, file} <- file_open(css_path, [:read, :append, :utf8]) do
       if !exists_in_css_file?(css_path, file, icon_css_name) do
-        css = css_svg(icon_css_name, (svg_code))
+        css = css_svg(icon_css_name, svg_code)
         # |> IO.inspect()
 
         append_css(css_path, file, css)
@@ -533,7 +536,6 @@ defmodule Iconify do
   defp get_svg(json_filepath, icon_name, opts) do
     case list_json_svgs(json_filepath, icon_name, opts) do
       {:ok, json, icons} when is_map(icons) ->
-
         if opts[:icon_json] || Map.has_key?(icons, icon_name) do
           icon = opts[:icon_json] || Map.fetch!(icons, icon_name)
 
@@ -544,20 +546,21 @@ defmodule Iconify do
             "No icon named `#{icon_name}` found in icon set #{json_filepath} - Icons available include: #{Enum.join(Map.keys(icons), ", ")}"
           )
         end
+
       _ ->
         icon_error(
-            icon_name,
-            "No icons found in icon set #{json_filepath}"
-          )
+          icon_name,
+          "No icons found in icon set #{json_filepath}"
+        )
     end
   end
 
   defp return_svg(json, icon) do
     {
-      Map.fetch!(icon, "body"), 
-    Map.get(icon, "width") || Map.get(json, "width") || 16,
-    Map.get(icon, "height") || Map.get(json, "height") || 16
-  }
+      Map.fetch!(icon, "body"),
+      Map.get(icon, "width") || Map.get(json, "width") || 16,
+      Map.get(icon, "height") || Map.get(json, "height") || 16
+    }
   end
 
   defp list_json_svgs(json_filepath, icon_name \\ nil, opts \\ []) do
@@ -854,16 +857,16 @@ defmodule Iconify do
   # end
 
   def prepare_entire_icon_family(family_name, mode \\ nil) do
-     mode = mode || mode(emoji?(family_name)) 
+    mode = mode || mode(emoji?(family_name))
 
     json_filepath = json_path(family_name)
 
     case list_json_svgs(json_filepath) do
-      {:ok, json, icons} when is_map(icons) and icons !=%{} ->
+      {:ok, json, icons} when is_map(icons) and icons != %{} ->
         for {icon_name, icon_json} <- icons do
           prepare("#{family_name}:#{icon_name}", json: json, icon_json: icon_json, mode: mode)
         end
-      end
+    end
   end
 
   def list_components do
