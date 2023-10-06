@@ -1,6 +1,6 @@
 {
   "dependencies": {},
   "optionalDependencies": {
-    "@iconify/json": "^2.1.155"
+    "@iconify/json": "^2.2.125"
   }
 }

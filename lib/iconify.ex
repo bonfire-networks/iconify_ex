@@ -18,7 +18,9 @@ defmodule Iconify do
     end
   end
 
-  def prepare(assigns, mode \\ nil) do
+  def prepare(assigns, mode \\ nil)
+
+  def prepare(%{} = assigns, mode) do
     assigns =
       Map.put_new_lazy(assigns, :class, fn ->
         Application.get_env(:iconify_ex, :default_class, "w-4 h-4")
@@ -33,7 +35,7 @@ defmodule Iconify do
         {:set, &render_svg_for_sprite/1, assigns |> Enum.into(%{href: href})}
 
       :img_url ->
-        {:img, maybe_prepare_icon_img(icon)}
+        maybe_prepare_icon_img(icon)
 
       :img ->
         src = prepare_icon_img(icon)
@@ -52,6 +54,10 @@ defmodule Iconify do
 
         {:css, &render_svg_with_css/1, assigns |> Enum.into(%{icon_name: icon_name})}
     end
+  end
+
+  def prepare(icon, mode) when is_binary(icon) do
+    prepare(%{icon: icon}, mode)
   end
 
   def manual(icon, opts \\ nil) do
@@ -85,6 +91,7 @@ defmodule Iconify do
   def using_svg_inject?, do: Application.get_env(:iconify_ex, :using_svg_inject, false)
   # def css_class, do: Application.get_env(:iconify_ex, :css_class, "iconify_icon")
 
+  @doc "Icon is part of an known emoji set (or another set which doesn't support CSS mode)"
   def emoji?(icon),
     do:
       String.starts_with?(to_string(icon), [
@@ -94,7 +101,8 @@ defmodule Iconify do
         "twemoji",
         "fluent-emoji",
         "fxemoji",
-        "streamline-emoji"
+        "streamline-emoji",
+        "meteocons"
       ])
 
   defp href_for_prepared_set_icon(icon) do
@@ -231,7 +239,7 @@ defmodule Iconify do
 
       json_path = json_path(family_name)
 
-      svg = svg(json_path, icon_name)
+      svg = svg_as_is(json_path, icon_name)
       # |> IO.inspect()
 
       File.mkdir_p(path)
@@ -464,10 +472,21 @@ defmodule Iconify do
     end
   end
 
+  defp svg_as_is(json_path, icon_name) do
+    {svg, w, h} = get_svg(json_path, icon_name)
+
+    svg_wrap(svg, w, h)
+  end
+
   defp svg(json_path, icon_name) do
     {svg, w, h} = get_svg(json_path, icon_name)
 
-    "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 #{w} #{h}\">#{clean_svg(svg, icon_name)}</svg>"
+    clean_svg(svg, icon_name)
+    |> svg_wrap(w, h)
+  end
+
+  defp svg_wrap(svg, w, h) do
+    "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 #{w} #{h}\">#{svg}</svg>"
   end
 
   defp svg_for_sprite(json_path, icon_name) do
