@@ -74,6 +74,9 @@ defmodule Iconify do
 
       {_, other} ->
         other
+
+      other ->
+        other
     end
   end
 
