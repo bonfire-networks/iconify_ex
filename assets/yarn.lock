@@ -2,10 +2,10 @@
 # yarn lockfile v1
 
 
-"@iconify/json@^2.2.125":
-  version "2.2.130"
-  resolved "https://registry.yarnpkg.com/@iconify/json/-/json-2.2.130.tgz#365b8a4185f258111eb25958026bd9539c5bd5f7"
-  integrity sha512-xP9g3gcSpQ8/fDFFacNgkX/h/vfYHMty2vtPB0G14zZxODuYOLUqpv3R8recsFjd222qJ9kNZipsWY1RYjUp6A==
+"@iconify/json@^2.2.135":
+  version "2.2.135"
+  resolved "https://registry.yarnpkg.com/@iconify/json/-/json-2.2.135.tgz#9657a5f380e9eb48c760394b57d761840490690b"
+  integrity sha512-SrssFU+P37j3QhxatYazLgNfvlwP3NVMFRUBlKfb8MvMtXqT46lT1KZsXLsRsORbLjm89+VJqXKOyK4u5K6T8A==
   dependencies:
     "@iconify/types" "*"
     pathe "^1.1.0"
