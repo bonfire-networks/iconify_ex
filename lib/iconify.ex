@@ -544,11 +544,10 @@ defmodule Iconify do
 
           return_svg(json, icon)
         else
-
           if icon_alias = Map.get(json["aliases"] || %{}, icon_name, %{}) |> Map.get("parent") do
             icon_error(
               icon_name,
-              "This icon is an alias of another icon: #{inspect icon_alias} - Please directly use that one instead."
+              "This icon is an alias of another icon: #{inspect(icon_alias)} - Please directly use that one instead."
             )
           else
             icon_error(
@@ -556,7 +555,6 @@ defmodule Iconify do
               "No such icon found in icon set #{json_filepath} - Icons available include: #{Enum.join(Map.keys(icons), ", ")}"
             )
           end
-          
         end
 
       _ ->
