@@ -129,7 +129,9 @@ if Code.ensure_loaded?(Surface) do
     end
 
     defp prepare_icon_name(assigns) do
-      IO.inspect(assigns, label: "iconify: icon name not found in assigns")
+      e = "iconify: icon name not found in assigns"
+      IO.inspect(assigns, label: e)
+      # raise e
       ""
     end
 
