@@ -797,8 +797,7 @@ defmodule Iconify do
 
   def maybe_set_favicon(socket, "<svg" <> _ = icon) do
     socket
-    |> data_image_svg()
-    |> Phx.Live.Favicon.set_dynamic("svg", icon)
+    |> Phx.Live.Favicon.set_dynamic("svg", data_image_svg(icon))
   end
 
   def maybe_set_favicon(socket, icon) when is_binary(icon) do
