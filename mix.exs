@@ -2,14 +2,14 @@ defmodule Iconify.MixProject do
   use Mix.Project
 
   @project_url "https://github.com/bonfire-networks/iconify_ex"
-  @version "0.4.3"
+  @version "0.4.4"
 
   def project do
     [
       app: :iconify_ex,
       version: @version,
       elixir: "~> 1.10",
-      description: "Phoenix Component generator for the SVG of 100,000+ icons from 100+ icon sets from https://iconify.design",
+      description: "Phoenix helpers for using the 100,000+ SVG icons from 100+ icon sets from https://iconify.design",
       source_url: @project_url,
       homepage_url: @project_url,
       elixirc_paths: elixirc_paths(Mix.env()),
