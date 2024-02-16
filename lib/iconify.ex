@@ -501,7 +501,7 @@ defmodule Iconify do
   defp svg_for_sprite(json_path, icon_name, opts) do
     {svg, w, h} = get_svg(json_path, icon_name, opts)
 
-    "<svg id=\"#{icon_name}\" xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 #{w} #{h}\" fill=\"currentColor\" aria-hidden=\"true\">#{svg_as_is(svg, icon_name, opts)}</svg>"
+    "<svg id=\"#{icon_name}\" xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 #{w} #{h}\" fill=\"currentColor\" aria-hidden=\"true\">#{svg_as_is(json_path, icon_name, opts)}</svg>"
   end
 
   defp svg_for_component(json_path, icon_name, opts) do
