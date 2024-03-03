@@ -72,3 +72,5 @@ If your icon is dynamic, you'll still want to use the first form:
 ```html
 <.iconify icon={@my_icon} />
 ```
+
+Note: when using the CSS mode, there's sometimes a race condition that adds an icon several times. Until a fix is found you can run something like `sort -u -o icons_dir/icons.css icons_dir/icons.css` to clean up the CSS file.

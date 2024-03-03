@@ -42,6 +42,7 @@ defmodule Iconify.MixProject do
       {:phoenix_live_favicon, "~> 0.2.0", optional: true},
       {:recase, "~> 0.5"},
       {:arrows, "~> 0.1"},
+      {:untangle, "~> 0.3"},
       {:floki, ">= 0.30.0", optional: true}
     ]
   end

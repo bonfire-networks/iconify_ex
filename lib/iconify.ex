@@ -1,9 +1,9 @@
 defmodule Iconify do
   use Phoenix.Component
   use Arrows
+  use Untangle
   import Phoenix.LiveView.TagEngine
   # import Phoenix.LiveView.HTMLEngine
-  require Logger
 
   # this is executed at compile time
   @cwd File.cwd!()
@@ -28,7 +28,7 @@ defmodule Iconify do
 
     icon = Map.fetch!(assigns, :icon)
 
-    case opts[:mode] || mode(emoji?(icon)) do
+    case opts[:mode] || mode(icon) do
       :set ->
         href = href_for_prepared_set_icon(icon, opts)
 
@@ -96,9 +96,13 @@ defmodule Iconify do
 
   def static_url, do: Application.get_env(:iconify_ex, :generated_icon_static_url, "")
 
-  defp mode(true), do: :img
-  defp mode(_), do: Application.get_env(:iconify_ex, :mode, false)
+  defp mode(icon) when is_atom(icon) and not is_nil(icon) and not is_boolean(icon), do: :inline
+  defp mode(icon), do: or_mode(emoji?(icon))
+  defp or_mode(true), do: :img
+  defp or_mode(_), do: Application.get_env(:iconify_ex, :mode, false)
+
   def using_svg_inject?, do: Application.get_env(:iconify_ex, :using_svg_inject, false)
+
   # def css_class, do: Application.get_env(:iconify_ex, :css_class, "iconify_icon")
 
   @doc "Icon is part of an known emoji set (or another set which doesn't support CSS mode)"
@@ -393,10 +397,9 @@ defmodule Iconify do
   end
 
   defp do_prepare_icon_data(family_name, icon_name, icon_css_name, opts) do
-    icons_dir = static_path()
-    css_path = "#{icons_dir}/icons.css"
+    css_path = css_path()
 
-    with {:ok, file} <- file_open(css_path, [:read, :utf8]) do
+    with {:ok, file} <- open_css_file(css_path) do
       case extract_from_css_file(css_path, file, icon_css_name) do
         nil ->
           if dev_env?(), do: do_prepare_icon_css(family_name, icon_name, icon_css_name, opts)
@@ -428,11 +431,12 @@ defmodule Iconify do
   end
 
   defp do_prepare_icon_css(family_name, icon_name, icon_css_name, opts) do
-    icons_dir = static_path()
-    css_path = "#{icons_dir}/icons.css"
+    css_path = css_path()
 
-    with {:ok, file} <- file_open(css_path, [:read, :append, :utf8]) do
-      if !exists_in_css_file?(css_path, file, icon_css_name) do
+    with {:ok, file} <- open_css_file(css_path),
+         {exists_in_css_file?, existing_contents} <-
+           check_exists_in_css_file(css_path, file, icon_css_name) do
+      if !exists_in_css_file? do
         svg = opts[:svg] || svg_as_is(json_path(family_name), icon_name, opts)
         # |> IO.inspect()
 
@@ -441,7 +445,7 @@ defmodule Iconify do
         css = css_with_data_svg(icon_css_name, data_svg)
         # |> IO.inspect()
 
-        append_css(css_path, file, css)
+        append_css(css_path, file, css, existing_contents)
 
         data_svg
       end
@@ -449,36 +453,26 @@ defmodule Iconify do
   end
 
   def add_icon_to_css(icon_css_name, svg_code) do
-    icons_dir = static_path()
-    css_path = "#{icons_dir}/icons.css"
+    css_path = css_path()
 
-    with {:ok, file} <- file_open(css_path, [:read, :append, :utf8]) do
-      if !exists_in_css_file?(css_path, file, icon_css_name) do
+    with {:ok, file} <- open_css_file(css_path),
+         {exists_in_css_file?, existing_contents} <-
+           check_exists_in_css_file(css_path, file, icon_css_name) do
+      if !exists_in_css_file? do
         css = css_svg(icon_css_name, svg_code)
         # |> IO.inspect()
 
-        append_css(css_path, file, css)
+        append_css(css_path, file, css, existing_contents)
       end
     end
   end
 
-  defp file_open(path, args) do
-    # TODO: put args in key?
-    key = "iconify_ex_file_#{path}_#{inspect(args)}"
+  defp css_path(icons_dir \\ static_path()) do
+    "#{icons_dir || static_path()}/icons.css"
+  end
 
-    case Process.get(key) do
-      nil ->
-        # Logger.debug("open #{path}")
-
-        with {:ok, file} <- File.open(path, args) do
-          Process.put(key, file)
-          {:ok, file}
-        end
-
-      io_device ->
-        # Logger.debug("use available #{path}")
-        {:ok, io_device}
-    end
+  defp open_css_file(css_path \\ css_path()) do
+    file_open(css_path || css_path(), [:read, :append, :utf8])
   end
 
   defp svg_as_is(json_path, icon_name, opts) do
@@ -598,12 +592,15 @@ defmodule Iconify do
   end
 
   defp module_section(name) do
-    "." <>
-      (name
-       |> String.split("-")
-       |> Enum.map(&String.capitalize/1)
-       |> Enum.join("")
-       |> module_sanitise())
+    "." <> module_camel(name)
+  end
+
+  defp module_camel(name) do
+    name
+    |> String.split("-")
+    |> Enum.map(&String.capitalize/1)
+    |> Enum.join("")
+    |> module_sanitise()
   end
 
   defp module_sanitise(str) do
@@ -642,7 +639,7 @@ defmodule Iconify do
          fallback_icon(),
          Iconify.HeroiconsSolid.QuestionMarkCircle
        ] do
-      Logger.error("iconify: #{inspect(icon)} #{msg}")
+      error(msg, "Iconify error with icon: #{inspect(icon)}")
       throw({:fallback, fallback_icon()})
     else
       throw(msg)
@@ -651,66 +648,57 @@ defmodule Iconify do
 
   defp write_css(icons_dir \\ static_path(), css) do
     css = Enum.join(css, "\n") <> "\n"
-    path = "#{icons_dir}/icons.css"
+    path = css_path(icons_dir)
     File.write!(path, css)
-    cache_contents(path, css)
+    # cache_contents(path, css)
   end
 
-  defp append_css(css_path, file, css) when is_list(css) do
-    append_css(css_path, file, Enum.join(css, "\n"))
+  defp append_css(css_path, file, css, existing_contents) when is_list(css) do
+    append_css(css_path, file, Enum.join(css, "\n"), existing_contents)
   end
 
-  defp append_css(css_path, file, css) when is_binary(css) do
+  defp append_css(css_path, file, css, existing_contents) when is_binary(css) do
     css = "#{css}\n"
+
+    # file = if Process.alive?(file) do
+    #   file
+    # else
+    #   file_open(path, args, :force)
+    # end
+
     IO.write(file, css)
-    cache_contents(css_path, css)
+    # cache_contents(css_path, "#{existing_contents}\n#{css}", cache_contents_key(css_path))
   end
 
-  defp exists_in_css?(file_or_icons_dir \\ static_path(), icon_css_name)
+  # defp exists_in_css?(file_or_icons_dir \\ static_path(), icon_css_name)
 
-  defp exists_in_css?(icons_dir, icon_css_name) when is_binary(icons_dir) do
-    css_path = "#{icons_dir}/icons.css"
+  # defp exists_in_css?(icons_dir, icon_css_name) when is_binary(icons_dir) do
+  #   css_path = css_path()
+  #   with {:ok, file} <- open_css_file(css_path) do
+  #     exists_in_css_file?(css_path, file, icon_css_name)
+  #   else
+  #     e ->
+  #       IO.warn(e)
+  #       false
+  #   end
+  # end
 
-    with {:ok, file} <- File.open(css_path, [:read]) do
-      exists_in_css_file?(css_path, file, icon_css_name)
-    else
-      e ->
-        IO.warn(e)
-        false
-    end
-  end
+  # defp exists_in_css_file?(css_path, file, icon_css_name) do
+  #   check_exists_in_css_file(css_path, file, icon_css_name) 
+  #   |> Enum.at(0)
+  # end
 
-  defp read_file(path, file) do
-    key = cache_contents_key(path)
+  defp check_exists_in_css_file(css_path, file, icon_css_name) do
+    contents = read_file(css_path, file, :force)
 
-    case Process.get(key) do
-      nil ->
-        # Logger.debug("read #{path}")
-        contents = IO.read(file, :all)
-        cache_contents(path, contents, key)
-        contents
-
-      contents ->
-        # Logger.debug("use cached #{path}")
-        contents
-    end
-  end
-
-  defp cache_contents_key(path) do
-    "iconify_ex_contents_#{path}"
-  end
-
-  defp cache_contents(path, contents, key \\ nil) do
-    Process.put(key || cache_contents_key(path), contents)
-  end
-
-  defp exists_in_css_file?(css_path, file, icon_css_name) do
-    read_file(css_path, file)
-    |> String.contains?("\"#{icon_css_name}\"")
+    {contents
+     |> String.contains?("\"#{icon_css_name}\""),
+     #  |> debug(icon_css_name)
+    contents}
   end
 
   defp extract_from_css_file(css_path, file, icon_css_name) do
-    text = read_file(css_path, file)
+    text = read_file(css_path, file, :force)
 
     Regex.run(
       ~r/\[iconify="#{icon_css_name}"]{--Iy:url\("data:image\/svg\+xml;utf8,([^"]+)/,
@@ -718,6 +706,120 @@ defmodule Iconify do
       capture: :first
     )
   end
+
+  defp file_open(path, args, extra \\ nil)
+
+  defp file_open(path, args, {:force, key}) do
+    with {:ok, file} <- File.open(path, args) do
+      Process.put(key, file)
+      {:ok, file}
+    end
+  end
+
+  defp file_open(path, args, _) do
+    key = "iconify_ex_file_#{path}_#{inspect(args)}"
+
+    case Process.get(key) do
+      nil ->
+        # debug(path, "open")
+        file_open(path, args, {:force, key})
+
+      io_device ->
+        # if Process.alive?(io_device) do
+        # debug(path, "use available")
+        {:ok, io_device}
+        # else
+        #     debug(path, "re-open")
+        #     file_open(path, args, {:force, key})
+        # end
+    end
+  end
+
+  defp read_file(path, file, extra \\ nil)
+
+  defp read_file(path, file, :force) do
+    with {:ok, contents} <- File.read(path) do
+      contents
+    else
+      e ->
+        error(e)
+        ""
+    end
+  end
+
+  defp read_file(path, file, _) do
+    key = cache_contents_key(path)
+
+    case get_cache(key) do
+      nil ->
+        # debug(path, "read")
+        contents = IO.read(file, :all)
+        cache_contents(path, contents, key)
+        contents
+
+      contents ->
+        # debug(path, "use cached")
+        contents
+    end
+  end
+
+  defp init_cache do
+    case :ets.whereis(:iconify_ex_cache) do
+      :undefined ->
+        :ets.new(:iconify_ex_cache, [:named_table, :set, :public])
+
+      _ ->
+        nil
+        # already exists
+    end
+  end
+
+  defp get_cache(key, fallback \\ nil) do
+    # Process.get(key)
+
+    init_cache()
+
+    case :ets.lookup(:iconify_ex_cache, key) do
+      [{key, value}] ->
+        value
+
+      _ ->
+        # not found
+        fallback
+    end
+    # |> debug
+  end
+
+  defp put_cache(key, value) do
+    # Process.put(key)
+
+    init_cache()
+
+    :ets.insert(:iconify_ex_cache, {key, value})
+    # |> debug
+  end
+
+  defp cache_contents_key(path) do
+    "iconify_ex_contents_#{path}"
+  end
+
+  defp cache_contents(path, contents, key \\ nil) do
+    key = key || cache_contents_key(path)
+
+    put_cache(key, contents)
+    # |> debug("#{key}")
+  end
+
+  # defp process_id do
+  #   case :erlang.get(:elixir_compiler_info) do
+  #     {compiler_pid, _file_pid} ->
+  #       compiler_pid
+
+  #     _ ->
+  #       # debug("not compiling")
+  #       self()
+  #   end
+  # end
 
   defp json_path(family_name),
     do:
@@ -866,7 +968,7 @@ defmodule Iconify do
   # end
 
   def prepare_entire_icon_family(family_name, mode \\ nil) do
-    mode = mode || mode(emoji?(family_name))
+    mode = mode || mode(family_name)
 
     json_filepath = json_path(family_name)
 
@@ -891,6 +993,35 @@ defmodule Iconify do
         |> Enum.at(2)
       end)
     end
+    # |> debug()
+  end
+
+  def list_icons_in_css do
+    css_path = css_path()
+
+    with {:ok, file} <- open_css_file(css_path) do
+      text =
+        read_file(css_path, file, :force)
+        |> String.split("\n")
+        |> Enum.map(fn line ->
+          line
+          |> String.split("\"")
+          |> Enum.at(1)
+        end)
+        |> Enum.reject(&is_nil/1)
+        |> Enum.group_by(fn icon ->
+          String.split(icon, ":")
+          |> List.first()
+          |> module_camel()
+        end)
+    end
+  end
+
+  def list_all_existing do
+    # TODO: include sprint and img icons too
+    Map.merge(list_components(), list_icons_in_css(), fn _k, v1, v2 ->
+      v1 ++ v2
+    end)
   end
 
   def generate_sets_from_components() do
