@@ -691,10 +691,12 @@ defmodule Iconify do
   defp check_exists_in_css_file(css_path, file, icon_css_name) do
     contents = read_file(css_path, file, :force)
 
-    {contents
-     |> String.contains?("\"#{icon_css_name}\""),
-     #  |> debug(icon_css_name)
-    contents}
+    {
+      contents
+      |> String.contains?("\"#{icon_css_name}\""),
+      #  |> debug(icon_css_name)
+      contents
+    }
   end
 
   defp extract_from_css_file(css_path, file, icon_css_name) do
@@ -787,6 +789,7 @@ defmodule Iconify do
         # not found
         fallback
     end
+
     # |> debug
   end
 
@@ -993,6 +996,7 @@ defmodule Iconify do
         |> Enum.at(2)
       end)
     end
+
     # |> debug()
   end
 
