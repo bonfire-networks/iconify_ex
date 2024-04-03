@@ -54,6 +54,15 @@ defmodule Iconify do
 
         {:css, &render_svg_with_css/1, assigns |> Enum.into(%{icon_name: icon_name})}
     end
+  catch
+    {:fallback, "<svg " <> _ = fallback_icon} ->
+      {:inline, &custom_svg_component/1, Map.put(assigns, :icon, fallback_icon)}
+
+    {:fallback, fallback_icon} when is_binary(fallback_icon) ->
+      prepare(Map.put(assigns, :icon, fallback_icon), opts)
+
+    other ->
+      raise other
   end
 
   def prepare(icon, opts) when is_binary(icon) do
@@ -132,9 +141,6 @@ defmodule Iconify do
       _ ->
         nil
     end
-  catch
-    {:fallback, fallback_icon} when is_binary(fallback_icon) -> prepare_icon_img(fallback_icon)
-    other -> raise other
   end
 
   defp prepare_svg_for_set(family_name, icon_name, opts) do
@@ -224,9 +230,6 @@ defmodule Iconify do
       _ ->
         icon_error(icon, "Could not process family_and_icon")
     end
-  catch
-    {:fallback, fallback_icon} when is_binary(fallback_icon) -> prepare_icon_img(fallback_icon)
-    other -> raise other
   end
 
   defp maybe_prepare_icon_img(icon, opts) do
@@ -274,12 +277,6 @@ defmodule Iconify do
       _ ->
         icon_error(icon, "Could not process family_and_icon")
     end
-  catch
-    {:fallback, fallback_icon} when is_binary(fallback_icon) ->
-      prepare_icon_component(fallback_icon)
-
-    other ->
-      raise other
   end
 
   defp prepare_icon_component(icon, _opts) when is_atom(icon) do
@@ -291,12 +288,6 @@ defmodule Iconify do
         "No component module is available in your app for this icon: `#{inspect(icon)}`. Using the binary icon name instead would allow it to be generated from Iconify. Find icon names at https://icones.js.org"
       )
     end
-  catch
-    {:fallback, fallback_icon} when is_binary(fallback_icon) ->
-      prepare_icon_component(fallback_icon)
-
-    other ->
-      raise other
   end
 
   defp prepare_icon_component(icon, _opts) do
@@ -304,12 +295,6 @@ defmodule Iconify do
       icon,
       "Expected a binary icon name or an icon component module atom, got `#{inspect(icon)}`"
     )
-  catch
-    {:fallback, fallback_icon} when is_binary(fallback_icon) ->
-      prepare_icon_component(fallback_icon)
-
-    other ->
-      raise other
   end
 
   defp do_prepare_icon_component(family_name, icon_name, opts) do
@@ -344,12 +329,6 @@ defmodule Iconify do
     end
 
     module_atom
-  catch
-    {:fallback, fallback_icon} when is_binary(fallback_icon) ->
-      prepare_icon_component(fallback_icon)
-
-    other ->
-      raise other
   end
 
   def create_component_for_svg(family_name, icon_name, svg_code) do
@@ -372,12 +351,6 @@ defmodule Iconify do
     Code.compile_file(component_filepath)
 
     module_atom
-  catch
-    {:fallback, fallback_icon} when is_binary(fallback_icon) ->
-      prepare_icon_component(fallback_icon)
-
-    other ->
-      raise other
   end
 
   defp prepare_icon_data(icon, opts) do
@@ -391,9 +364,6 @@ defmodule Iconify do
       _ ->
         icon_error(icon, "Could not process family_and_icon")
     end
-  catch
-    {:fallback, fallback_icon} when is_binary(fallback_icon) -> nil
-    other -> raise other
   end
 
   defp do_prepare_icon_data(family_name, icon_name, icon_css_name, opts) do
@@ -425,9 +395,6 @@ defmodule Iconify do
       _ ->
         icon_error(icon, "Could not process family_and_icon")
     end
-  catch
-    {:fallback, fallback_icon} when is_binary(fallback_icon) -> prepare_icon_css(fallback_icon)
-    other -> raise other
   end
 
   defp do_prepare_icon_css(family_name, icon_name, icon_css_name, opts) do
@@ -510,6 +477,12 @@ defmodule Iconify do
       "<svg",
       "<svg data-icon=\"#{icon_name}\" class={@class}"
     )
+  end
+
+  defp custom_svg_component(assigns) do
+    ~H"""
+    <div data-icon="custom" class={@class}><%= Phoenix.HTML.raw(clean_svg(@icon)) %></div>
+    """
   end
 
   defp clean_svg(svg, _icon_name \\ nil) do
@@ -631,6 +604,10 @@ defmodule Iconify do
       end
     end
     """
+  end
+
+  defp icon_error("<svg " <> _ = icon, _msg) do
+    throw({:fallback, icon})
   end
 
   defp icon_error(icon, msg) do
@@ -925,7 +902,7 @@ defmodule Iconify do
   end
 
   defp maybe_set_favicon_emoji(socket, icon) do
-    case Iconify.manual(icon, mode: :img_url) do
+    case manual(icon, mode: :img_url) do
       img when is_binary(img) ->
         img
         # |> IO.inspect(label: "use emojiii from URL")
@@ -957,7 +934,7 @@ defmodule Iconify do
   end
 
   defp do_set_favicon_iconify(socket, icon) do
-    Iconify.manual(icon, mode: :data)
+    manual(icon, mode: :data)
     # |> IO.inspect(label: "iconify - not emojiii")
     |> data_image_svg()
     |> Phx.Live.Favicon.set_dynamic(socket, "svg", ...)
