@@ -936,7 +936,7 @@ defmodule Iconify do
   defp do_set_favicon_iconify(socket, icon) do
     manual(icon, mode: :data)
     # |> IO.inspect(label: "iconify - not emojiii")
-    |> data_image_svg()
+    ~> data_image_svg()
     |> Phx.Live.Favicon.set_dynamic(socket, "svg", ...)
   end
 
