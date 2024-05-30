@@ -2,7 +2,7 @@ defmodule Iconify.MixProject do
   use Mix.Project
 
   @project_url "https://github.com/bonfire-networks/iconify_ex"
-  @version "0.4.5"
+  @version "0.4.6"
 
   def project do
     [
