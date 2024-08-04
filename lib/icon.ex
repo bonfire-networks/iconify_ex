@@ -1,5 +1,30 @@
 if Code.ensure_loaded?(Surface) do
   defmodule Iconify.Icon do
+    @moduledoc """
+    A `Surface` component for rendering icons using various methods.
+
+    ## Specifying what icon to use
+
+    - `iconify` or `icon`: Any icon from Iconify (https://icones.js.org)
+    - `solid`: Shorthand for Heroicons solid icons
+    - `outline`: Shorthand for Heroicons outline icons
+
+    ## Extra Properties
+    - `svg`: Optionally pass SVG markup directly
+    - `mode`: Sets what rendering mode to use (see `Iconify` docs)
+    - `class`: Any CSS classes to apply to the icon
+
+    ## Examples
+
+      iex> alias Iconify.Icon
+      iex> ~F"<#Icon iconify=\"heroicons-solid:user\" class=\"w-6 h-6\" />"
+      # Returns rendered icon HTML
+
+      iex> ~F"<#Icon solid=\"user\" class=\"w-6 h-6\" />"
+            
+      iex> ~F"<#Icon svg=\"<svg>...</svg>\" class=\"w-6 h-6\" />"
+    """
+
     use Surface.MacroComponent
 
     # any icon from iconify: https://icones.js.org
@@ -18,6 +43,9 @@ if Code.ensure_loaded?(Surface) do
 
     prop class, :css_class, default: nil
 
+    @doc """
+
+    """
     def expand(attributes, _content, meta) do
       static_props =
         Surface.MacroComponent.eval_static_props!(__MODULE__, attributes, meta.caller)

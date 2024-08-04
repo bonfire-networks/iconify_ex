@@ -1,4 +1,6 @@
 defmodule Iconify do
+  @moduledoc "./README.md" |> File.stream!() |> Enum.drop(1) |> Enum.join()
+
   use Phoenix.Component
   use Arrows
   use Untangle
@@ -8,6 +10,15 @@ defmodule Iconify do
   # this is executed at compile time
   @cwd File.cwd!()
 
+  @doc """
+  Renders an icon as a `Phoenix.Component` based on the given assigns.
+
+  ## Examples
+
+      iex> assigns = %{icon: "heroicons-solid:user", class: "w-6 h-6"}
+      iex> Iconify.iconify(assigns)
+      # Returns rendered icon HTML
+  """
   def iconify(assigns) do
     with {_, fun, assigns} <- prepare(assigns, assigns[:mode]) do
       component(
@@ -18,6 +29,36 @@ defmodule Iconify do
     end
   end
 
+  @doc """
+  Prepares an icon based on the given assigns and mode (such as CSS, inline SVG, or image URL).
+
+  ## Examples
+
+      iex> {:css, _function, %{
+        icon: "heroicons-solid:user",
+        class: "w-4 h-4",
+        icon_name: "heroicons-solid:user"
+      }} = Iconify.prepare(%{icon: "heroicons-solid:user"}, :css)
+
+      iex> Iconify.prepare(%{icon: "heroicons-solid:user"}, :inline)
+      {:inline, _fun, %{icon: "heroicons-solid:user"}}
+
+      iex> Iconify.prepare(%{icon: "heroicons-solid:user"}, :img)
+      {:img, _fun, %{src: "/images/icons/heroicons-solid/user.svg"}}
+
+      iex> Iconify.prepare(%{icon: "heroicons-solid:user"}, :set)
+      {:set, _fun, %{href: "/images/icons/heroicons-solid.svg#user"}}
+
+      iex> Iconify.prepare(%{icon: "twemoji:rabbit"})
+      {:img, _fun, %{src: "/images/icons/twemoji/rabbit.svg"}}
+
+      iex> Iconify.prepare(%{icon: "non-existent-icon"})
+      {:css, _fun, %{icon_name: "heroicons-solid:question-mark-circle"}}
+
+       > Iconify.prepare(%{icon: "<svg>...</svg>"})
+      {:inline, _fun, %{icon: "<svg>...</svg>"}}
+
+  """
   def prepare(assigns, opts \\ [])
 
   def prepare(assigns, opts) when is_map(assigns) and is_list(opts) do
@@ -73,6 +114,14 @@ defmodule Iconify do
     prepare(icon, mode: mode)
   end
 
+  @doc """
+  Prepares and renders an icon.
+
+  ## Examples
+
+      iex> Iconify.manual("heroicons-solid:user", mode: :css)
+      # Returns rendered icon HTML or data
+  """
   def manual(icon, opts \\ nil) do
     assigns = Map.put(opts[:assigns] || %{}, :icon, icon)
     mode = opts[:mode]
@@ -89,12 +138,37 @@ defmodule Iconify do
     end
   end
 
+  @doc """
+  Returns the fallback icon name.
+
+  ## Examples
+
+      iex> Iconify.fallback_icon()
+      "heroicons-solid:question-mark-circle"
+  """
   # TODO: configurable
   def fallback_icon, do: "heroicons-solid:question-mark-circle"
 
   def dev_env?, do: Code.ensure_loaded?(Mix)
+
+  @doc """
+  Returns the configured path for generated icon modules.
+
+  ## Examples
+
+      iex> Iconify.path()
+      "./lib/web/icons"
+  """
   def path, do: Application.get_env(:iconify_ex, :generated_icon_modules_path, "./lib/web/icons")
 
+  @doc """
+  Returns the configured path for generated static icon assets.
+
+  ## Examples
+
+      iex> Iconify.static_path()
+      "./assets/static/images/icons"
+  """
   def static_path,
     do:
       Application.get_env(
@@ -103,6 +177,14 @@ defmodule Iconify do
         "./assets/static/images/icons"
       )
 
+  @doc """
+  Returns the configured URL for generated static icon assets.
+
+  ## Examples
+
+      iex> Iconify.static_url()
+      "/images/icons"
+  """
   def static_url, do: Application.get_env(:iconify_ex, :generated_icon_static_url, "")
 
   defp mode(icon) when is_atom(icon) and not is_nil(icon) and not is_boolean(icon), do: :inline
@@ -110,11 +192,28 @@ defmodule Iconify do
   defp or_mode(true), do: :img
   defp or_mode(_), do: Application.get_env(:iconify_ex, :mode, false)
 
+  @doc """
+  Checks if SVG injection is enabled in config.
+
+  ## Examples
+
+      iex> Iconify.using_svg_inject?()
+      false
+  """
   def using_svg_inject?, do: Application.get_env(:iconify_ex, :using_svg_inject, false)
 
   # def css_class, do: Application.get_env(:iconify_ex, :css_class, "iconify_icon")
 
-  @doc "Icon is part of an known emoji set (or another set which doesn't support CSS mode)"
+  @doc """
+  Checks if the icon is part of a known emoji set or any set that doesn't support CSS mode.
+
+  ## Examples
+
+      iex> Iconify.emoji?("twemoji:smile")
+      true
+      iex> Iconify.emoji?("heroicons-solid:user")
+      false
+  """
   def emoji?(icon),
     do:
       String.starts_with?(to_string(icon), [
@@ -331,7 +430,15 @@ defmodule Iconify do
     module_atom
   end
 
-  def create_component_for_svg(family_name, icon_name, svg_code) do
+  @docp """
+  Creates a component for a given SVG code.
+
+  ## Examples
+
+      iex> Iconify.create_component_for_svg("heroicons", "user", "<svg>...</svg>")
+      Iconify.Heroicons.User
+  """
+  defp create_component_for_svg(family_name, icon_name, svg_code) do
     icon_name = String.trim_trailing(icon_name, "-icon")
     component_path = "#{path()}/#{family_name}"
     component_filepath = "#{component_path}/#{icon_name}.ex"
@@ -852,7 +959,7 @@ defmodule Iconify do
     """
   end
 
-  def render_svg_with_img(assigns) do
+  defp render_svg_with_img(assigns) do
     ~H"""
     <img
       src={@src}
@@ -863,7 +970,7 @@ defmodule Iconify do
     """
   end
 
-  def render_svg_with_css(assigns) do
+  defp render_svg_with_css(assigns) do
     ~H"""
     <div iconify={@icon_name} class={@class} aria-hidden="true" />
     """
@@ -871,12 +978,21 @@ defmodule Iconify do
     # <div class={"#{css_class()} #{@class}"} style={"-webkit-mask: var(--#{@icon_name}); mask: var(--#{@icon_name})"} aria-hidden="true" />
   end
 
-  # def render_svg_with_css(assigns) do
+  # defp render_svg_with_css(assigns) do
   #   ~H"""
   #   <div class={"#{@icon_name} #{@class}"} aria-hidden="true" />
   #   """
   # end
 
+  @doc """
+  Sets the favicon for a Phoenix LiveView socket.
+
+  ## Examples
+
+      iex> socket = %Phoenix.LiveView.Socket{}
+      iex> Iconify.maybe_set_favicon(socket, "heroicons-solid:star")
+      %Phoenix.LiveView.Socket{}
+  """
   def maybe_set_favicon(socket, "<svg" <> _ = icon) do
     socket
     |> Phx.Live.Favicon.set_dynamic("svg", data_image_svg(icon))
@@ -947,6 +1063,14 @@ defmodule Iconify do
   #   <link rel="icon" href="data:image/svg+xml,&lt;svg viewBox=%220 0 100 100%22 xmlns=%22http://www.w3.org/2000/svg%22&gt;&lt;text y=%22.9em%22 font-size=%2290%22&gt;⏰&lt;/text&gt;&lt;rect x=%2260.375%22 y=%2238.53125%22 width=%2239.625%22 height=%2275.28125%22 rx=%226.25%22 ry=%226.25%22 style=%22fill: red;%22&gt;&lt;/rect&gt;&lt;text x=%2293.75%22 y=%2293.75%22 font-size=%2260%22 text-anchor=%22end%22 alignment-baseline=%22text-bottom%22 fill=%22white%22 style=%22font-weight: 400;%22&gt;1&lt;/text&gt;&lt;/svg&gt;">
   # end
 
+  @doc """
+  Prepares an entire icon family for a particular mode.
+
+  ## Examples
+
+      iex> Iconify.prepare_entire_icon_family("heroicons-solid", :inline)
+      # creates a Phoenix.Component module file for each icon in the set
+  """
   def prepare_entire_icon_family(family_name, mode \\ nil) do
     mode = mode || mode(family_name)
 
@@ -960,6 +1084,17 @@ defmodule Iconify do
     end
   end
 
+  @doc """
+  Lists all available icon components.
+
+  ## Examples
+
+      iex> Iconify.list_components()
+      %{
+        "HeroiconsSolid" => [Iconify.HeroiconsSolid.User, Iconify.HeroiconsSolid.Star, ...],
+        "HeroiconsOutline" => [Iconify.HeroiconsOutline.User, Iconify.HeroiconsOutline.Star, ...]
+      }
+  """
   def list_components do
     with {:ok, modules} <-
            :application.get_key(
@@ -977,6 +1112,17 @@ defmodule Iconify do
     # |> debug()
   end
 
+  @doc """
+  Lists all icons defined in the CSS file.
+
+  ## Examples
+
+      iex> Iconify.list_icons_in_css()
+      %{
+        "HeroiconsSolid" => ["user", "star", ...],
+        "HeroiconsOutline" => ["user", "star", ...]
+      }
+  """
   def list_icons_in_css do
     css_path = css_path()
 
@@ -998,6 +1144,17 @@ defmodule Iconify do
     end
   end
 
+  @doc """
+  Lists all existing icons (components and CSS).
+
+  ## Examples
+
+      iex> Iconify.list_all_existing()
+      %{
+        "HeroiconsSolid" => [Iconify.HeroiconsSolid.User, "user", ...],
+        "HeroiconsOutline" => [Iconify.HeroiconsOutline.User, "user", ...]
+      }
+  """
   def list_all_existing do
     # TODO: include sprint and img icons too
     Map.merge(list_components(), list_icons_in_css(), fn _k, v1, v2 ->
@@ -1005,6 +1162,14 @@ defmodule Iconify do
     end)
   end
 
+  @doc """
+  Generates icon sets from existing components.
+
+  ## Examples
+
+      iex> Iconify.generate_sets_from_components()
+      [:ok, :ok, ...]
+  """
   def generate_sets_from_components() do
     icons = icon_from_components()
 
@@ -1023,6 +1188,14 @@ defmodule Iconify do
       |> IO.inspect()
   end
 
+  @doc """
+  Generates CSS icons from existing static files.
+
+  ## Examples
+
+      iex> Iconify.generate_css_from_static_files()
+      :ok
+  """
   def generate_css_from_static_files() do
     icons_dir = static_path()
 
@@ -1050,6 +1223,14 @@ defmodule Iconify do
     write_css(icons_dir, css)
   end
 
+  @doc """
+  Generates CSS icons from existing components.
+
+  ## Examples
+
+      iex> Iconify.generate_css_from_components()
+      :ok
+  """
   def generate_css_from_components() do
     icons = icon_from_components()
 
