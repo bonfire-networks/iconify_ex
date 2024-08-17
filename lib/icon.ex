@@ -16,13 +16,13 @@ if Code.ensure_loaded?(Surface) do
 
     ## Examples
 
-      iex> alias Iconify.Icon
-      iex> ~F"<#Icon iconify=\"heroicons-solid:user\" class=\"w-6 h-6\" />"
-      # Returns rendered icon HTML
+        iex> alias Iconify.Icon
+        iex> ~F"<#Icon iconify=\"heroicons-solid:user\" class=\"w-6 h-6\" />"
+        # Returns rendered icon HTML
 
-      iex> ~F"<#Icon solid=\"user\" class=\"w-6 h-6\" />"
-            
-      iex> ~F"<#Icon svg=\"<svg>...</svg>\" class=\"w-6 h-6\" />"
+        iex> ~F"<#Icon solid=\"user\" class=\"w-6 h-6\" />"
+              
+        iex> ~F"<#Icon svg=\"<svg>...</svg>\" class=\"w-6 h-6\" />"
     """
 
     use Surface.MacroComponent
