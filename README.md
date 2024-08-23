@@ -48,7 +48,16 @@ If using CSS mode, you'll need to set some default styles that apply to all icon
 }
 ```
 
-3. In all three cases, usage is simple and remains the same:
+Other configurations include:
+
+```elixir
+config :iconify_ex, :fallback_icon, "heroicons-solid:question-mark-circle" # when an icon is not found
+config :iconify_ex, :generated_icon_modules_path, "./lib/web/icons" # for :inline mode
+config :iconify_ex, :generated_icon_static_path, "./priv/static/images/icons" # where CSS and images are stored
+config :iconify_ex, :generated_icon_static_url, "/images/icons/" # where CSS and images are served from
+```
+
+3. In all three cases, usage is the same (meaning you can easily switch between modes at any time) by including a component:
 
 Embed an icon using default classes (copy the icon name from the [iconify website](https://icon-sets.iconify.design)):
 ```html
