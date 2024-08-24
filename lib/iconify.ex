@@ -796,6 +796,8 @@ defmodule Iconify do
   defp file_open(path, args, extra \\ nil)
 
   defp file_open(path, args, {:force, key}) do
+    File.mkdir_p(Path.dirname(path))
+    
     with {:ok, file} <- File.open(path, args) do
       Process.put(key, file)
       {:ok, file}

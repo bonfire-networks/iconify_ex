@@ -22,9 +22,9 @@ def deps do
 end
 ```
 
-You then need to fetch the latest [iconify icon sets](https://github.com/iconify/icon-sets) by running:
+After running `mix deps.get` you need to fetch the latest [iconify icon sets](https://github.com/iconify/icon-sets) by running something like:
 ```bash
-cd deps/iconify_ex/assets && yarn
+cd deps/iconify_ex/assets && yarn && cd ../../..
 ```
 
 ## Usage
@@ -37,7 +37,7 @@ cd deps/iconify_ex/assets && yarn
 - `config :iconify_ex, :mode, :inline` 
 - `config :iconify_ex, :mode, :set` 
 
-If using CSS mode, you'll need to set some default styles that apply to all icons, either by adding something like this to your app's main CSS:
+If using CSS mode, you'll need to include the CSS file in your layout (e.g. `<link phx-track-static rel="stylesheet" href={~p"/images/icons/icons.css"} />` in your app's equivalent of `lib/my_app_web/components/layouts/root.html.heex`) and set some default styles that will be applied to all icons, by adding something like this to your app's main CSS (e.g. `assets/css/app.css`):
 ```css
 [iconify] {
   background-color: currentColor;
