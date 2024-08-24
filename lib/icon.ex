@@ -28,20 +28,20 @@ if Code.ensure_loaded?(Surface) do
     use Surface.MacroComponent
 
     # any icon from iconify: https://icones.js.org
-    prop iconify, :string, required: false, static: true
-    prop icon, :string, required: false, static: true
+    prop(iconify, :string, required: false, static: true)
+    prop(icon, :string, required: false, static: true)
 
     # shorthand for heroicons solid icons
-    prop solid, :string, required: false, static: true
+    prop(solid, :string, required: false, static: true)
     # shorthand for heroicons outline icons
-    prop outline, :string, required: false, static: true
+    prop(outline, :string, required: false, static: true)
 
     # pass SVG markup directly
-    prop svg, :string, default: nil, required: false, static: true
+    prop(svg, :string, default: nil, required: false, static: true)
 
-    prop mode, :atom, required: false, static: true
+    prop(mode, :atom, required: false, static: true)
 
-    prop class, :css_class, default: nil
+    prop(class, :css_class, default: nil)
 
     @doc """
 

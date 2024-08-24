@@ -147,7 +147,8 @@ defmodule Iconify do
       "heroicons-solid:question-mark-circle"
   """
   # TODO: configurable
-  def fallback_icon, do: Application.get_env(:iconify_ex, :fallback_icon, "heroicons-solid:question-mark-circle") 
+  def fallback_icon,
+    do: Application.get_env(:iconify_ex, :fallback_icon, "heroicons-solid:question-mark-circle")
 
   def dev_env?, do: Code.ensure_loaded?(Mix)
 
@@ -185,7 +186,8 @@ defmodule Iconify do
       iex> Iconify.static_url()
       "/images/icons"
   """
-  def static_url, do: Application.get_env(:iconify_ex, :generated_icon_static_url, "/images/icons")
+  def static_url,
+    do: Application.get_env(:iconify_ex, :generated_icon_static_url, "/images/icons")
 
   defp mode(icon) when is_atom(icon) and not is_nil(icon) and not is_boolean(icon), do: :inline
   defp mode(icon), do: or_mode(emoji?(icon))
@@ -797,7 +799,7 @@ defmodule Iconify do
 
   defp file_open(path, args, {:force, key}) do
     File.mkdir_p(Path.dirname(path))
-    
+
     with {:ok, file} <- File.open(path, args) do
       Process.put(key, file)
       {:ok, file}
