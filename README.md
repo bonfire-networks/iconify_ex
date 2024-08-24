@@ -24,7 +24,7 @@ end
 
 After running `mix deps.get` you need to fetch the latest [iconify icon sets](https://github.com/iconify/icon-sets) by running something like:
 ```bash
-cd deps/iconify_ex/assets && yarn && cd ../../..
+cd deps/iconify_ex/assets && yarn && cd -
 ```
 
 ## Usage

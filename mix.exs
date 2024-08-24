@@ -36,6 +36,7 @@ defmodule Iconify.MixProject do
   defp deps do
     [
       {:ex_doc, ">= 0.0.0", only: :dev, runtime: false},
+      {:emote, "~> 0.1.1", optional: true},
       {:jason, "~> 1.3"},
       {:phoenix_live_view, "~> 0.19 or ~> 0.20"},
       {:surface, "~> 0.11.0", optional: true},
