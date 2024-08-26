@@ -999,7 +999,7 @@ defmodule Iconify do
   """
   def maybe_set_favicon(socket, "<svg" <> _ = icon) do
     socket
-    |> Phx.Live.Favicon.set_dynamic("svg", data_image_svg(icon))
+    |> maybe_phx_live_set_dynamic(data_image_svg(icon))
   end
 
   def maybe_set_favicon(socket, icon) when is_binary(icon) do
@@ -1021,12 +1021,24 @@ defmodule Iconify do
     |> Phx.Live.Favicon.reset()
   end
 
+  def maybe_phx_live_set_dynamic(socket, icon, type \\ "svg")
+  def maybe_phx_live_set_dynamic(socket, icon, type) when is_binary(icon) do
+    socket
+    |> Phx.Live.Favicon.set_dynamic(type, icon)
+  end
+  def maybe_phx_live_set_dynamic(socket, _icon, _type) do
+    socket
+    |> Phx.Live.Favicon.reset()
+  end
+
+
   defp maybe_set_favicon_emoji(socket, icon) do
     case manual(icon, mode: :img_url) do
       img when is_binary(img) ->
-        img
+        # img
         # |> IO.inspect(label: "use emojiii from URL")
-        |> Phx.Live.Favicon.set_dynamic(socket, "svg", ...)
+        
+        maybe_phx_live_set_dynamic(socket, img)
 
       _ ->
         case Code.ensure_loaded?(Emote) and
@@ -1050,14 +1062,14 @@ defmodule Iconify do
   defp do_set_favicon_text(socket, text) do
     "<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>#{text}</text></svg>"
     |> data_image_svg()
-    |> Phx.Live.Favicon.set_dynamic(socket, "svg", ...)
+    |> maybe_phx_live_set_dynamic(socket, ...)
   end
 
   defp do_set_favicon_iconify(socket, icon) do
     manual(icon, mode: :data)
     # |> IO.inspect(label: "iconify - not emojiii")
     ~> data_image_svg()
-    |> Phx.Live.Favicon.set_dynamic(socket, "svg", ...)
+    |> maybe_phx_live_set_dynamic(socket, ...)
   end
 
   defp data_image_svg(svg), do: "data:image/svg+xml;utf8,#{svg}"
