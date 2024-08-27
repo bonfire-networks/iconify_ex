@@ -1022,22 +1022,23 @@ defmodule Iconify do
   end
 
   def maybe_phx_live_set_dynamic(socket, icon, type \\ "svg")
+
   def maybe_phx_live_set_dynamic(socket, icon, type) when is_binary(icon) do
     socket
     |> Phx.Live.Favicon.set_dynamic(type, icon)
   end
+
   def maybe_phx_live_set_dynamic(socket, _icon, _type) do
     socket
     |> Phx.Live.Favicon.reset()
   end
-
 
   defp maybe_set_favicon_emoji(socket, icon) do
     case manual(icon, mode: :img_url) do
       img when is_binary(img) ->
         # img
         # |> IO.inspect(label: "use emojiii from URL")
-        
+
         maybe_phx_live_set_dynamic(socket, img)
 
       _ ->
