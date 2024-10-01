@@ -190,7 +190,7 @@ defmodule Iconify do
     do: Application.get_env(:iconify_ex, :generated_icon_static_url, "/images/icons")
 
   defp mode(icon) when is_atom(icon) and not is_nil(icon) and not is_boolean(icon), do: :inline
-  defp mode(icon), do: or_mode(emoji?(icon))
+  defp mode(icon), do: or_mode(complex?(icon))
   defp or_mode(true), do: :img
   defp or_mode(_), do: Application.get_env(:iconify_ex, :mode, false)
 
@@ -206,8 +206,40 @@ defmodule Iconify do
 
   # def css_class, do: Application.get_env(:iconify_ex, :css_class, "iconify_icon")
 
+  defp emoji_sets(),
+    do:
+      Application.get_env(:iconify_ex, :emoji_sets, [
+        "emoji",
+        "noto",
+        "openmoji",
+        "twemoji",
+        "fluent-emoji",
+        "fxemoji",
+        "streamline-emoji"
+      ])
+
+  defp complex_sets(),
+    do:
+      Application.get_env(:iconify_ex, :complex_sets, [
+        "line-md",
+        "meteocons",
+        "svg-spinners",
+        "vscode",
+        "devicon",
+        "skill",
+        "unjs",
+        "flat-color",
+        "flag", 
+        "circle-flags", 
+        "cif",
+        "logos",
+        "token-branded",
+        "cryptocurrency-color"
+      ])
+
+
   @doc """
-  Checks if the icon is part of a known emoji set or any set that doesn't support CSS mode.
+  Checks if the icon is part of a known emoji set
 
   ## Examples
 
@@ -218,16 +250,21 @@ defmodule Iconify do
   """
   def emoji?(icon),
     do:
-      String.starts_with?(to_string(icon), [
-        "emoji",
-        "noto",
-        "openmoji",
-        "twemoji",
-        "fluent-emoji",
-        "fxemoji",
-        "streamline-emoji",
-        "meteocons"
-      ])
+      String.starts_with?(to_string(icon), emoji_sets())
+
+    @doc """
+  Checks if the icon is part of a known emoji set or any set shouldn't use CSS mode (eg. includes color or animation).
+
+  ## Examples
+
+      iex> Iconify.complex?("twemoji:smile")
+      true
+      iex> Iconify.complex?("heroicons-solid:user")
+      false
+  """
+  def complex?(icon),
+    do:
+      String.starts_with?(to_string(icon), emoji_sets() ++ complex_sets())
 
   defp href_for_prepared_set_icon(icon, opts) do
     with [family_name, icon_name] <- family_and_icon(icon) do
@@ -932,6 +969,7 @@ defmodule Iconify do
     |> URI.encode(&URI.char_unescaped?(&1))
     |> String.replace("%20", " ")
     |> String.replace("%22", "'")
+    # |> String.replace("='#", "='%23") # WIP: workaround for hex colors in params
   end
 
   defp css_icon_name(family, icon), do: "#{family}:#{icon}"
@@ -1152,13 +1190,42 @@ defmodule Iconify do
           |> String.split("\"")
           |> Enum.at(1)
         end)
-        |> Enum.reject(&is_nil/1)
+        |> group_for_listing()
+    end
+  end
+
+  defp list_icon_images(icons_dir \\ static_path()) do
+    File.ls!(icons_dir)
+      |> Enum.flat_map(fn dir ->
+        path = Path.join(icons_dir, dir)
+
+        if File.regular?(path),
+          do: [],
+          else:
+            File.ls!(path)
+            |> Enum.map(fn file ->
+              {css_icon_name(dir, Path.basename(file, ".svg")), Path.join(path, file)}
+            end)
+      end)
+      |> IO.inspect()
+  end
+
+  def list_icons_in_images() do
+    list_icon_images()
+    |> Enum.map(fn {icon, _path} ->
+      icon
+    end)
+    |> group_for_listing()
+  end
+
+  defp group_for_listing(icons) do
+    icons
+    |> Enum.reject(&is_nil/1)
         |> Enum.group_by(fn icon ->
           String.split(icon, ":")
           |> List.first()
           |> module_camel()
         end)
-    end
   end
 
   @doc """
@@ -1173,8 +1240,14 @@ defmodule Iconify do
       }
   """
   def list_all_existing do
-    # TODO: include sprint and img icons too
-    Map.merge(list_components(), list_icons_in_css(), fn _k, v1, v2 ->
+    # TODO: include sprite icons too
+    list_icons_in_css()
+    |> merge_map_lists(list_components())
+    |> merge_map_lists(list_icons_in_images())
+  end
+
+  defp merge_map_lists(a, b) do
+    Map.merge(a, b, fn _k, v1, v2 ->
       v1 ++ v2
     end)
   end
@@ -1216,20 +1289,7 @@ defmodule Iconify do
   def generate_css_from_static_files() do
     icons_dir = static_path()
 
-    icons =
-      File.ls!(icons_dir)
-      |> Enum.flat_map(fn dir ->
-        path = Path.join(icons_dir, dir)
-
-        if File.regular?(path),
-          do: [],
-          else:
-            File.ls!(path)
-            |> Enum.map(fn file ->
-              {css_icon_name(dir, Path.basename(file, ".svg")), Path.join(path, file)}
-            end)
-      end)
-      |> IO.inspect()
+    icons = list_icon_images(icons_dir)
 
     css =
       Enum.map(icons, fn {name, full_path} ->
