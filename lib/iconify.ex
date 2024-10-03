@@ -229,14 +229,13 @@ defmodule Iconify do
         "skill",
         "unjs",
         "flat-color",
-        "flag", 
-        "circle-flags", 
+        "flag",
+        "circle-flags",
         "cif",
         "logos",
         "token-branded",
         "cryptocurrency-color"
       ])
-
 
   @doc """
   Checks if the icon is part of a known emoji set
@@ -249,10 +248,9 @@ defmodule Iconify do
       false
   """
   def emoji?(icon),
-    do:
-      String.starts_with?(to_string(icon), emoji_sets())
+    do: String.starts_with?(to_string(icon), emoji_sets())
 
-    @doc """
+  @doc """
   Checks if the icon is part of a known emoji set or any set shouldn't use CSS mode (eg. includes color or animation).
 
   ## Examples
@@ -263,8 +261,7 @@ defmodule Iconify do
       false
   """
   def complex?(icon),
-    do:
-      String.starts_with?(to_string(icon), emoji_sets() ++ complex_sets())
+    do: String.starts_with?(to_string(icon), emoji_sets() ++ complex_sets())
 
   defp href_for_prepared_set_icon(icon, opts) do
     with [family_name, icon_name] <- family_and_icon(icon) do
@@ -969,6 +966,7 @@ defmodule Iconify do
     |> URI.encode(&URI.char_unescaped?(&1))
     |> String.replace("%20", " ")
     |> String.replace("%22", "'")
+
     # |> String.replace("='#", "='%23") # WIP: workaround for hex colors in params
   end
 
@@ -1196,18 +1194,18 @@ defmodule Iconify do
 
   defp list_icon_images(icons_dir \\ static_path()) do
     File.ls!(icons_dir)
-      |> Enum.flat_map(fn dir ->
-        path = Path.join(icons_dir, dir)
+    |> Enum.flat_map(fn dir ->
+      path = Path.join(icons_dir, dir)
 
-        if File.regular?(path),
-          do: [],
-          else:
-            File.ls!(path)
-            |> Enum.map(fn file ->
-              {css_icon_name(dir, Path.basename(file, ".svg")), Path.join(path, file)}
-            end)
-      end)
-      |> IO.inspect()
+      if File.regular?(path),
+        do: [],
+        else:
+          File.ls!(path)
+          |> Enum.map(fn file ->
+            {css_icon_name(dir, Path.basename(file, ".svg")), Path.join(path, file)}
+          end)
+    end)
+    |> IO.inspect()
   end
 
   def list_icons_in_images() do
@@ -1221,11 +1219,11 @@ defmodule Iconify do
   defp group_for_listing(icons) do
     icons
     |> Enum.reject(&is_nil/1)
-        |> Enum.group_by(fn icon ->
-          String.split(icon, ":")
-          |> List.first()
-          |> module_camel()
-        end)
+    |> Enum.group_by(fn icon ->
+      String.split(icon, ":")
+      |> List.first()
+      |> module_camel()
+    end)
   end
 
   @doc """
