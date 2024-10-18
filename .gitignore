@@ -30,3 +30,4 @@ iconify_ex-*.tar
 
 # Compiled icon modules
 lib/icons
+/priv/static/images

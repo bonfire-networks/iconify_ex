@@ -15,12 +15,11 @@ defmodule Iconify do
 
   ## Examples
 
-      iex> assigns = %{icon: "heroicons-solid:user", class: "w-6 h-6"}
-      iex> Iconify.iconify(assigns)
-      # Returns rendered icon HTML
+      iex> assigns = %{icon: "heroicons-solid:user", class: "w-6 h-6", __changed__: nil}
+      iex> Iconify.iconify(assigns) # Returns rendered icon HTML
   """
   def iconify(assigns) do
-    with {_, fun, assigns} <- prepare(assigns, assigns[:mode]) do
+    with {_, fun, assigns} <- prepare(assigns, assigns[:mode]) |> debug() do
       component(
         fun,
         assigns,
@@ -34,28 +33,19 @@ defmodule Iconify do
 
   ## Examples
 
-      iex> {:css, _function, %{
-        icon: "heroicons-solid:user",
-        class: "w-4 h-4",
-        icon_name: "heroicons-solid:user"
-      }} = Iconify.prepare(%{icon: "heroicons-solid:user"}, :css)
+      iex> {:css, _function, %{icon: "heroicons-solid:user", class: "w-4 h-4", icon_name: "heroicons-solid:user"}} = Iconify.prepare(%{icon: "heroicons-solid:user", __changed__: nil}, :css)
 
-      iex> Iconify.prepare(%{icon: "heroicons-solid:user"}, :inline)
-      {:inline, _fun, %{icon: "heroicons-solid:user"}}
+      iex> {:inline, _fun, %{icon: "heroicons-solid:user"}} = Iconify.prepare(%{icon: "heroicons-solid:user", __changed__: nil}, :inline)
 
-      iex> Iconify.prepare(%{icon: "heroicons-solid:user"}, :img)
-      {:img, _fun, %{src: "/images/icons/heroicons-solid/user.svg"}}
+      iex> {:img, _fun, %{src: "/images/icons/heroicons-solid/user.svg"}} = Iconify.prepare(%{icon: "heroicons-solid:user", __changed__: nil}, :img)
 
-      iex> Iconify.prepare(%{icon: "heroicons-solid:user"}, :set)
-      {:set, _fun, %{href: "/images/icons/heroicons-solid.svg#user"}}
+      iex> {:set, _fun, %{href: "/images/icons/heroicons-solid.svg#user"}} = Iconify.prepare(%{icon: "heroicons-solid:user", __changed__: nil}, :set)
 
-      iex> Iconify.prepare(%{icon: "twemoji:rabbit"})
-      {:img, _fun, %{src: "/images/icons/twemoji/rabbit.svg"}}
+      iex> {:img, _fun, %{src: "/images/icons/twemoji/rabbit.svg"}} = Iconify.prepare(%{icon: "twemoji:rabbit", __changed__: nil})
 
-      iex> Iconify.prepare(%{icon: "non-existent-icon"})
-      {:css, _fun, %{icon_name: "heroicons-solid:question-mark-circle"}}
-
-       > Iconify.prepare(%{icon: "<svg>...</svg>"})
+      iex> {:css, _fun, %{icon_name: "heroicons-solid:question-mark-circle"}} = Iconify.prepare(%{icon: "non-existent-icon", __changed__: nil})
+      
+       > Iconify.prepare(%{icon: "<svg>...</svg>", __changed__: nil})
       {:inline, _fun, %{icon: "<svg>...</svg>"}}
 
   """
@@ -63,7 +53,7 @@ defmodule Iconify do
 
   def prepare(assigns, opts) when is_map(assigns) and is_list(opts) do
     assigns =
-      Map.put_new_lazy(assigns, :class, fn ->
+      assign_new(assigns, :class, fn ->
         Application.get_env(:iconify_ex, :default_class, "w-4 h-4")
       end)
 
@@ -73,7 +63,7 @@ defmodule Iconify do
       :set ->
         href = href_for_prepared_set_icon(icon, opts)
 
-        {:set, &render_svg_for_sprite/1, assigns |> Enum.into(%{href: href})}
+        {:set, &render_svg_for_sprite/1, assigns |> assign(:href, href)}
 
       :img_url ->
         maybe_prepare_icon_img(icon, opts)
@@ -81,7 +71,7 @@ defmodule Iconify do
       :img ->
         src = prepare_icon_img(icon, opts)
 
-        {:img, &render_svg_with_img/1, assigns |> Enum.into(%{src: src})}
+        {:img, &render_svg_with_img/1, assigns |> assign(:src, src)}
 
       :inline ->
         {:inline, &prepare_icon_component(icon, opts).render/1, assigns}
@@ -93,21 +83,21 @@ defmodule Iconify do
         # :css by default
         icon_name = prepare_icon_css(icon, opts)
 
-        {:css, &render_svg_with_css/1, assigns |> Enum.into(%{icon_name: icon_name})}
+        {:css, &render_svg_with_css/1, assigns |> assign(:icon_name, icon_name)}
     end
   catch
     {:fallback, "<svg " <> _ = fallback_icon} ->
-      {:inline, &custom_svg_component/1, Map.put(assigns, :icon, fallback_icon)}
+      {:inline, &custom_svg_component/1, assign(assigns, :icon, fallback_icon)}
 
     {:fallback, fallback_icon} when is_binary(fallback_icon) ->
-      prepare(Map.put(assigns, :icon, fallback_icon), opts)
+      prepare(assign(assigns, :icon, fallback_icon), opts)
 
     other ->
       raise other
   end
 
   def prepare(icon, opts) when is_binary(icon) do
-    prepare(%{icon: icon}, opts)
+    prepare(%{icon: icon, __changed__: nil}, opts)
   end
 
   def prepare(icon, mode) when is_atom(mode) do
@@ -119,11 +109,11 @@ defmodule Iconify do
 
   ## Examples
 
-      iex> Iconify.manual("heroicons-solid:user", mode: :css)
-      # Returns rendered icon HTML or data
+      iex> %Phoenix.LiveView.Rendered{} = Iconify.manual("heroicons-solid:user", mode: :css) # Returns rendered icon HTML or data
+      
   """
   def manual(icon, opts \\ nil) do
-    assigns = Map.put(opts[:assigns] || %{}, :icon, icon)
+    assigns = assign(opts[:assigns] || %{__changed__: nil}, :icon, icon) # FIXME: won't work if assigns are not tracked LiveView assigns
     mode = opts[:mode]
 
     case prepare(assigns, opts[:mode]) do
@@ -168,7 +158,7 @@ defmodule Iconify do
   ## Examples
 
       iex> Iconify.static_path()
-      "./assets/static/images/icons"
+      "./priv/static/images/icons"
   """
   def static_path,
     do:
@@ -1030,8 +1020,7 @@ defmodule Iconify do
   ## Examples
 
       iex> socket = %Phoenix.LiveView.Socket{}
-      iex> Iconify.maybe_set_favicon(socket, "heroicons-solid:star")
-      %Phoenix.LiveView.Socket{}
+      iex> %Phoenix.LiveView.Socket{} = Iconify.maybe_set_favicon(socket, "heroicons-solid:star")
   """
   def maybe_set_favicon(socket, "<svg" <> _ = icon) do
     socket
@@ -1070,7 +1059,7 @@ defmodule Iconify do
   end
 
   defp maybe_set_favicon_emoji(socket, icon) do
-    case manual(icon, mode: :img_url) do
+    case manual(icon, assign(socket.assigns, :mode, :img_url)) do
       img when is_binary(img) ->
         # img
         # |> IO.inspect(label: "use emojiii from URL")
@@ -1103,7 +1092,7 @@ defmodule Iconify do
   end
 
   defp do_set_favicon_iconify(socket, icon) do
-    manual(icon, mode: :data)
+    manual(icon, assign(socket.assigns, :mode, :data))
     # |> IO.inspect(label: "iconify - not emojiii")
     ~> data_image_svg()
     |> maybe_phx_live_set_dynamic(socket, ...)
@@ -1121,8 +1110,7 @@ defmodule Iconify do
 
   ## Examples
 
-      iex> Iconify.prepare_entire_icon_family("heroicons-solid", :inline)
-      # creates a Phoenix.Component module file for each icon in the set
+      iex> Iconify.prepare_entire_icon_family("heroicons-solid", :inline) # creates a Phoenix.Component module file for each icon in the set
   """
   def prepare_entire_icon_family(family_name, mode \\ nil) do
     mode = mode || mode(family_name)
@@ -1142,10 +1130,10 @@ defmodule Iconify do
 
   ## Examples
 
-      iex> Iconify.list_components()
+      > Iconify.list_components()
       %{
-        "HeroiconsSolid" => [Iconify.HeroiconsSolid.User, Iconify.HeroiconsSolid.Star, ...],
-        "HeroiconsOutline" => [Iconify.HeroiconsOutline.User, Iconify.HeroiconsOutline.Star, ...]
+        "HeroiconsSolid" => [Iconify.HeroiconsSolid.User, Iconify.HeroiconsSolid.Star, _],
+        "HeroiconsOutline" => [Iconify.HeroiconsOutline.User, Iconify.HeroiconsOutline.Star, _]
       }
   """
   def list_components do
@@ -1160,6 +1148,9 @@ defmodule Iconify do
         String.split("#{mod}", ".", parts: 4)
         |> Enum.at(2)
       end)
+    else e ->
+      error(e)
+      []
     end
 
     # |> debug()
@@ -1170,10 +1161,10 @@ defmodule Iconify do
 
   ## Examples
 
-      iex> Iconify.list_icons_in_css()
+      > Iconify.list_icons_in_css()
       %{
-        "HeroiconsSolid" => ["user", "star", ...],
-        "HeroiconsOutline" => ["user", "star", ...]
+        "HeroiconsSolid" => ["user", "star", _],
+        "HeroiconsOutline" => ["user", "star", _]
       }
   """
   def list_icons_in_css do
@@ -1231,10 +1222,10 @@ defmodule Iconify do
 
   ## Examples
 
-      iex> Iconify.list_all_existing()
+      > Iconify.list_all_existing()
       %{
-        "HeroiconsSolid" => [Iconify.HeroiconsSolid.User, "user", ...],
-        "HeroiconsOutline" => [Iconify.HeroiconsOutline.User, "user", ...]
+        "HeroiconsSolid" => [Iconify.HeroiconsSolid.User, "user", _],
+        "HeroiconsOutline" => [Iconify.HeroiconsOutline.User, "user", _]
       }
   """
   def list_all_existing do
@@ -1255,8 +1246,8 @@ defmodule Iconify do
 
   ## Examples
 
-      iex> Iconify.generate_sets_from_components()
-      [:ok, :ok, ...]
+      > Iconify.generate_sets_from_components()
+      [:ok, :ok, _]
   """
   def generate_sets_from_components() do
     icons = icon_from_components()
