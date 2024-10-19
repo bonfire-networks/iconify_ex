@@ -113,7 +113,8 @@ defmodule Iconify do
       
   """
   def manual(icon, opts \\ nil) do
-    assigns = assign(opts[:assigns] || %{__changed__: nil}, :icon, icon) # FIXME: won't work if assigns are not tracked LiveView assigns
+    # FIXME: won't work if assigns are not tracked LiveView assigns
+    assigns = assign(opts[:assigns] || %{__changed__: nil}, :icon, icon)
     mode = opts[:mode]
 
     case prepare(assigns, opts[:mode]) do
@@ -1148,9 +1149,10 @@ defmodule Iconify do
         String.split("#{mod}", ".", parts: 4)
         |> Enum.at(2)
       end)
-    else e ->
-      error(e)
-      []
+    else
+      e ->
+        error(e)
+        []
     end
 
     # |> debug()

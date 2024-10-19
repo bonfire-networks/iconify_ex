@@ -65,7 +65,7 @@ if Code.ensure_loaded?(Surface) do
       # end
 
       if is_nil(svg) do
-        case Iconify.prepare(%{icon: icon}, static_props[:mode]) do
+        case Iconify.prepare(icon, static_props[:mode]) do
           {:css, _fun, %{icon_name: icon_name}} ->
             # icon_class = "#{Iconify.css_class()} #{icon_css_name} #{class_to_string(class)}" 
 
@@ -113,7 +113,7 @@ if Code.ensure_loaded?(Surface) do
     defmacro icon_name(icon) do
       name = prepare_icon_name(icon)
 
-      Iconify.prepare(%{icon: name}, :css)
+      Iconify.prepare(name, :css)
       |> IO.inspect(label: "prepared icon")
 
       name
