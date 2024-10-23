@@ -19,7 +19,7 @@ defmodule Iconify do
       iex> Iconify.iconify(assigns) # Returns rendered icon HTML
   """
   def iconify(assigns) do
-    with {_, fun, assigns} <- prepare(assigns, assigns[:mode]) |> debug() do
+    with {_, fun, assigns} <- prepare(assigns, assigns[:mode]) do
       component(
         fun,
         assigns,
