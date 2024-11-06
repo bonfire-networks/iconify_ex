@@ -141,7 +141,19 @@ defmodule Iconify do
   def fallback_icon,
     do: Application.get_env(:iconify_ex, :fallback_icon, "heroicons-solid:question-mark-circle")
 
-  def dev_env?, do: Code.ensure_loaded?(Mix)
+  if Mix.env() == :prod do
+    def preparation_enabled? do
+      env_config = Application.get_env(:iconify_ex, :env)
+
+      cond do
+        is_nil(env_config) and Code.ensure_loaded?(Mix) -> true
+        env_config != :prod -> true
+        true -> false
+      end
+    end
+  else
+    def preparation_enabled?, do: true
+  end
 
   @doc """
   Returns the configured path for generated icon modules.
@@ -258,7 +270,7 @@ defmodule Iconify do
     with [family_name, icon_name] <- family_and_icon(icon) do
       icon_name = String.trim_trailing(icon_name, "-icon")
 
-      if dev_env?() do
+      if preparation_enabled?() do
         do_prepare_set_icon_img(family_name, icon_name, opts)
       end
 
@@ -362,7 +374,7 @@ defmodule Iconify do
     with [family_name, icon_name] <- family_and_icon(icon) do
       icon_name = String.trim_trailing(icon_name, "-icon")
 
-      if dev_env?() do
+      if preparation_enabled?() do
         do_prepare_icon_img(family_name, icon_name, opts)
       end
 
@@ -436,7 +448,7 @@ defmodule Iconify do
     # |> IO.inspect(label: "module_atom")
 
     if not Code.ensure_loaded?(module_atom) do
-      if dev_env?() do
+      if preparation_enabled?() do
         if not File.exists?(component_filepath) do
           component_content =
             build_component(
@@ -506,7 +518,8 @@ defmodule Iconify do
     with {:ok, file} <- open_css_file(css_path) do
       case extract_from_css_file(css_path, file, icon_css_name) do
         nil ->
-          if dev_env?(), do: do_prepare_icon_css(family_name, icon_name, icon_css_name, opts)
+          if preparation_enabled?(),
+            do: do_prepare_icon_css(family_name, icon_name, icon_css_name, opts)
 
         svg_data ->
           svg_data
@@ -520,7 +533,7 @@ defmodule Iconify do
 
       icon_css_name = css_icon_name(family_name, icon_name)
 
-      if dev_env?() do
+      if preparation_enabled?() do
         do_prepare_icon_css(family_name, icon_name, icon_css_name, opts)
       end
 

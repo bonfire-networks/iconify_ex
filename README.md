@@ -37,6 +37,8 @@ cd deps/iconify_ex/assets && yarn && cd -
 - `config :iconify_ex, :mode, :inline` 
 - `config :iconify_ex, :mode, :set` 
 
+Along with this `config :iconify_ex, :env, config_env()` so the library knows when to prepare icons (only when not in prod env).
+
 If using CSS mode, you'll need to include the CSS file in your layout (e.g. `<link phx-track-static rel="stylesheet" href={~p"/images/icons/icons.css"} />` in your app's equivalent of `lib/my_app_web/components/layouts/root.html.heex`) and set some default styles that will be applied to all icons, by adding something like this to your app's main CSS (e.g. `assets/css/app.css`):
 ```css
 [iconify] {

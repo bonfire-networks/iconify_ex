@@ -7,5 +7,5 @@ defmodule Iconify.TestEndpoint do
     signing_salt: "some_signing_salt"
   ]
 
-  socket "/live", Phoenix.LiveView.Socket, websocket: [connect_info: [session: @session_options]]
+  socket("/live", Phoenix.LiveView.Socket, websocket: [connect_info: [session: @session_options]])
 end
