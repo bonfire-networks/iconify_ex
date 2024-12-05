@@ -2,7 +2,7 @@ defmodule Iconify.MixProject do
   use Mix.Project
 
   @project_url "https://github.com/bonfire-networks/iconify_ex"
-  @version "0.6.0"
+  @version "0.6.1"
 
   def project do
     [
@@ -40,8 +40,8 @@ defmodule Iconify.MixProject do
       {:ex_doc, ">= 0.0.0", only: :dev, runtime: false},
       {:emote, "~> 0.1.1", optional: true},
       {:jason, "~> 1.3"},
-      {:phoenix_live_view, "~> 0.19 or ~> 0.20"},
-      {:surface, "~> 0.11.0", optional: true},
+      {:phoenix_live_view, "~> 0.19 or ~> 0.20 or ~> 1.0"},
+      {:surface, "~> 0.12.0", optional: true},
       {:phoenix_live_favicon, "~> 0.2.0", optional: true},
       {:recase, "~> 0.8"},
       {:arrows, "~> 0.2"},
