@@ -52,6 +52,53 @@ defmodule Iconify do
   def prepare(assigns, opts \\ [])
 
   def prepare(assigns, opts) when is_map(assigns) and is_list(opts) do
+    do_prepare(assigns, opts)
+  catch
+    {:fallback, "<svg " <> _ = fallback_icon} ->
+      {:inline, &custom_svg_component/1, assign(assigns, :icon, fallback_icon)}
+
+    {:fallback, fallback_icon} when is_binary(fallback_icon) ->
+      prepare(assign(assigns, :icon, fallback_icon), opts)
+
+    other ->
+      raise other
+  end
+
+  def prepare(icon, opts) when is_binary(icon) do
+    prepare(%{icon: icon, __changed__: nil}, opts)
+  end
+
+  def prepare(icon, mode) when is_atom(mode) do
+    prepare(icon, mode: mode)
+  end
+
+  def prepare_name!(assigns, opts \\ [])
+
+  def prepare_name!(assigns, opts) when is_map(assigns) and is_list(opts) do
+    with {_, _, %{} = assigns} <- do_prepare(assigns, opts) do
+      assigns[:icon_name] || assigns[:icon]
+    else
+      _other ->
+        assigns[:icon]
+    end
+  catch
+    {:fallback, _} ->
+      raise "Iconify could not find icon: #{inspect(assigns[:icon])}"
+
+    other ->
+      error(other)
+      raise "Iconify error with icon: #{inspect(assigns[:icon])}"
+  end
+
+  def prepare_name!(icon, opts) when is_binary(icon) do
+    prepare_name!(%{icon: icon, __changed__: nil}, opts)
+  end
+
+  def prepare_name!(icon, mode) when is_atom(mode) do
+    prepare_name!(icon, mode: mode)
+  end
+
+  defp do_prepare(assigns, opts) when is_map(assigns) and is_list(opts) do
     assigns =
       assign_new(assigns, :class, fn ->
         Application.get_env(:iconify_ex, :default_class, "w-4 h-4")
@@ -85,23 +132,6 @@ defmodule Iconify do
 
         {:css, &render_svg_with_css/1, assigns |> assign(:icon_name, icon_name)}
     end
-  catch
-    {:fallback, "<svg " <> _ = fallback_icon} ->
-      {:inline, &custom_svg_component/1, assign(assigns, :icon, fallback_icon)}
-
-    {:fallback, fallback_icon} when is_binary(fallback_icon) ->
-      prepare(assign(assigns, :icon, fallback_icon), opts)
-
-    other ->
-      raise other
-  end
-
-  def prepare(icon, opts) when is_binary(icon) do
-    prepare(%{icon: icon, __changed__: nil}, opts)
-  end
-
-  def prepare(icon, mode) when is_atom(mode) do
-    prepare(icon, mode: mode)
   end
 
   @doc """
