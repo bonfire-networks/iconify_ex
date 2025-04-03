@@ -40,7 +40,7 @@ defmodule Iconify.MixProject do
       {:ex_doc, ">= 0.0.0", only: :dev, runtime: false},
       {:emote, "~> 0.1.1", optional: true},
       {:jason, "~> 1.3"},
-      {:phoenix_live_view, "~> 0.19 or ~> 0.20 or ~> 1.0"},
+      {:phoenix_live_view, ">= 0.19"},
       {:surface, "~> 0.12.0", optional: true},
       {:phoenix_live_favicon, "~> 0.2.0", optional: true},
       {:recase, "~> 0.8"},
