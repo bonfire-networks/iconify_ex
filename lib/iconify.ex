@@ -167,7 +167,6 @@ defmodule Iconify do
       iex> Iconify.fallback_icon()
       "heroicons-solid:question-mark-circle"
   """
-  # TODO: configurable
   def fallback_icon,
     do: Application.get_env(:iconify_ex, :fallback_icon, "heroicons-solid:question-mark-circle")
 
