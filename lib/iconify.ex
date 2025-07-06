@@ -1156,14 +1156,24 @@ defmodule Iconify do
       iex> Iconify.prepare_entire_icon_family("heroicons-solid", :inline) # creates a Phoenix.Component module file for each icon in the set
   """
   def prepare_entire_icon_family(family_name, mode \\ nil) do
-    mode = mode || mode(family_name)
-
-    json_filepath = json_path(family_name)
-
-    case list_json_svgs(json_filepath) do
+    case list_icon_family(family_name) do
       {:ok, json, icons} when is_map(icons) and icons != %{} ->
         for {icon_name, icon_json} <- icons do
           prepare("#{family_name}:#{icon_name}", json: json, icon_json: icon_json, mode: mode)
+        end
+    end
+  end
+
+  defp list_icon_family(family_name) do
+    json_path(family_name)
+    |> list_json_svgs()
+  end
+
+  def list_entire_icon_family(family_name) do
+    case list_icon_family(family_name) do
+      {:ok, json, icons} when is_map(icons) and icons != %{} ->
+        for {icon_name, icon_json} <- icons do
+          icon_name
         end
     end
   end
