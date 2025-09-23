@@ -558,7 +558,9 @@ defmodule Iconify do
 
   defp prepare_icon_css(icon, opts \\ []) do
     with [family_name, icon_name] <- family_and_icon(icon) do
-      icon_name = String.trim_trailing(icon_name, "-icon")
+      icon_name =
+        icon_name
+        |> String.trim_trailing("-icon")
 
       icon_css_name = css_icon_name(family_name, icon_name)
 
@@ -1021,6 +1023,7 @@ defmodule Iconify do
 
   defp icon_name(name) do
     Recase.to_kebab(name)
+    |> String.downcase()
   end
 
   defp render_svg_for_sprite(assigns) do
