@@ -48,7 +48,7 @@ defmodule Iconify do
 
       iex> {:img, _fun, %{src: "/images/icons/twemoji/rabbit.svg"}} = Iconify.prepare(%{icon: "twemoji:rabbit", __changed__: nil})
 
-      iex> {:css, _fun, %{icon_name: "heroicons-solid:question-mark-circle"}} = Iconify.prepare(%{icon: "non-existent-icon", __changed__: nil})
+      iex> {:css, _fun, %{icon_name: "heroicons:question-mark-circle-solid"}} = Iconify.prepare(%{icon: "non-existent-icon", __changed__: nil})
 
        > Iconify.prepare(%{icon: "<svg>...</svg>", __changed__: nil})
       {:inline, _fun, %{icon: "<svg>...</svg>"}}
