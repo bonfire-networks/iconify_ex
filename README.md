@@ -54,6 +54,8 @@ If using CSS mode, you'll need to include the CSS file in your layout (e.g. `<li
 }
 ```
 
+> Note: when using the CSS mode, there's sometimes a race condition that adds an icon several times. Until a fix is found you can run something like `sort -u -o icons_dir/icons.css icons_dir/icons.css` to clean up the CSS file.
+
 Other configurations include:
 
 ```elixir
@@ -71,11 +73,6 @@ Embed an icon using default classes (copy the icon name from the [iconify websit
 <.iconify icon="heroicons:collection-solid" />
 ```
 
-**Heroicons v2 Support:** This library supports Heroicons v2 with backwards compatibility for v1 names:
-
-- **v2 naming** (recommended): `heroicons:icon-name` (24px outline), `heroicons:icon-name-solid` (24px solid), `heroicons:icon-name-20-solid` (20px mini), `heroicons:icon-name-16-solid` (16px micro)
-- **v1 naming** (backwards compatible): `heroicons-solid:icon-name` (auto-translates to v2 24px solid), `heroicons-outline:icon-name` (auto-translates to v2 24px outline)
-
 Specify custom classes:
 
 ```html
@@ -87,21 +84,7 @@ Or if you use [Surface](https://surface-ui.org), it is highly recommended to use
 Add `alias Iconify.Icon` to your Web module, and then:
 
 ```html
-<!-- v2 naming (recommended) -->
 <#Icon iconify="heroicons:collection-solid" />
-
-<!-- Heroicons shortcuts -->
-<#Icon solid="collection" />
-<!-- 24px solid -->
-<#Icon outline="collection" />
-<!-- 24px outline (default) -->
-<#Icon mini="collection" />
-<!-- 20px solid -->
-<#Icon micro="collection" />
-<!-- 16px solid -->
-
-<!-- v1 naming (backwards compatible) -->
-<#Icon iconify="heroicons-solid:collection" />
 ```
 
 If your icon is dynamic, you'll still want to use the first form:
@@ -110,4 +93,8 @@ If your icon is dynamic, you'll still want to use the first form:
 <.iconify icon={@my_icon} />
 ```
 
-Note: when using the CSS mode, there's sometimes a race condition that adds an icon several times. Until a fix is found you can run something like `sort -u -o icons_dir/icons.css icons_dir/icons.css` to clean up the CSS file.
+**Special handling for Heroicons:** This library supports Heroicons v2 with backwards compatibility for v1 names:
+
+- **v2 naming** (recommended): `heroicons:icon-name` (24px outline), `heroicons:icon-name-solid` (24px solid), `heroicons:icon-name-20-solid` (20px mini), `heroicons:icon-name-16-solid` (16px micro)
+- **v1 naming** (backwards compatible): `heroicons-solid:icon-name` (auto-translates to v2 24px solid), `heroicons-outline:icon-name` (auto-translates to v2 24px outline)
+
