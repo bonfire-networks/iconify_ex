@@ -17,11 +17,21 @@ if Code.ensure_loaded?(Surface) do
     ## Examples
 
         iex> alias Iconify.Icon
-        iex> ~F"<#Icon iconify=\"heroicons-solid:user\" class=\"w-6 h-6\" />"
+        iex> ~F"<#Icon iconify=\"heroicons:user-solid\" class=\"w-6 h-6\" />"
         # Returns rendered icon HTML
 
         iex> ~F"<#Icon solid=\"user\" class=\"w-6 h-6\" />"
-              
+        # Shorthand for heroicons v2 24px solid
+
+        iex> ~F"<#Icon outline=\"user\" class=\"w-6 h-6\" />"
+        # Shorthand for heroicons v2 24px outline
+
+        iex> ~F"<#Icon mini=\"user\" class=\"w-5 h-5\" />"
+        # Shorthand for heroicons v2 20px solid
+
+        iex> ~F"<#Icon micro=\"user\" class=\"w-4 h-4\" />"
+        # Shorthand for heroicons v2 16px solid
+
         iex> ~F"<#Icon svg=\"<svg>...</svg>\" class=\"w-6 h-6\" />"
     """
 
@@ -31,10 +41,14 @@ if Code.ensure_loaded?(Surface) do
     prop(iconify, :string, required: false, static: true)
     prop(icon, :string, required: false, static: true)
 
-    # shorthand for heroicons solid icons
+    # shorthand for heroicons v2 24px solid icons
     prop(solid, :string, required: false, static: true)
-    # shorthand for heroicons outline icons
+    # shorthand for heroicons v2 24px outline icons (default)
     prop(outline, :string, required: false, static: true)
+    # shorthand for heroicons v2 20px solid icons (mini)
+    prop(mini, :string, required: false, static: true)
+    # shorthand for heroicons v2 16px solid icons (micro)
+    prop(micro, :string, required: false, static: true)
 
     # pass SVG markup directly
     prop(svg, :string, default: nil, required: false, static: true)
@@ -143,12 +157,22 @@ if Code.ensure_loaded?(Surface) do
 
     defp prepare_icon_name(%{solid: icon})
          when is_binary(icon) or (is_atom(icon) and not is_nil(icon)) do
-      "heroicons-solid:#{icon}"
+      "heroicons:#{icon}-solid"
     end
 
     defp prepare_icon_name(%{outline: icon})
          when is_binary(icon) or (is_atom(icon) and not is_nil(icon)) do
-      "heroicons-outline:#{icon}"
+      "heroicons:#{icon}"
+    end
+
+    defp prepare_icon_name(%{mini: icon})
+         when is_binary(icon) or (is_atom(icon) and not is_nil(icon)) do
+      "heroicons:#{icon}-20-solid"
+    end
+
+    defp prepare_icon_name(%{micro: icon})
+         when is_binary(icon) or (is_atom(icon) and not is_nil(icon)) do
+      "heroicons:#{icon}-16-solid"
     end
 
     defp prepare_icon_name(icon)
