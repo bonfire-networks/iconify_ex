@@ -771,25 +771,62 @@ defmodule Iconify do
   end
 
   defp maybe_auto_install_icon_sets(json_filepath) do
-    # Only attempt auto-install once per session to avoid repeated failures
-    cache_key = :iconify_auto_install_attempted
+    # Use a lock to ensure only one process installs and others wait
+    # This prevents race conditions in parallel test execution
+    cache_key = :iconify_auto_install_state
 
-    if :persistent_term.get(cache_key, false) do
-      :error
-    else
-      :persistent_term.put(cache_key, true)
-
-      Mix.shell().info("""
-      Iconify icon sets not found. Auto-installing...
-      (Missing: #{json_filepath})
-      """)
-
-      try do
-        Mix.Tasks.Iconify.Setup.run([])
+    case :persistent_term.get(cache_key, :not_started) do
+      :completed ->
         :ok
-      rescue
-        _ -> :error
-      end
+
+      :failed ->
+        :error
+
+      :in_progress ->
+        # Wait for the installation to complete (poll every 100ms, max 60s)
+        wait_for_install(cache_key, 600)
+
+      :not_started ->
+        # Try to claim the install lock
+        # Note: This isn't perfectly atomic but good enough for our use case
+        :persistent_term.put(cache_key, :in_progress)
+
+        Mix.shell().info("""
+        Iconify icon sets not found. Auto-installing...
+        (Missing: #{json_filepath})
+        """)
+
+        result =
+          try do
+            Mix.Tasks.Iconify.Setup.run([])
+            :persistent_term.put(cache_key, :completed)
+            :ok
+          rescue
+            _ ->
+              :persistent_term.put(cache_key, :failed)
+              :error
+          end
+
+        result
+    end
+  end
+
+  defp wait_for_install(cache_key, remaining_attempts) when remaining_attempts <= 0 do
+    # Timeout - return current state
+    case :persistent_term.get(cache_key, :failed) do
+      :completed -> :ok
+      _ -> :error
+    end
+  end
+
+  defp wait_for_install(cache_key, remaining_attempts) do
+    Process.sleep(100)
+
+    case :persistent_term.get(cache_key, :in_progress) do
+      :completed -> :ok
+      :failed -> :error
+      :in_progress -> wait_for_install(cache_key, remaining_attempts - 1)
+      _ -> :error
     end
   end
 
