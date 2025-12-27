@@ -128,7 +128,7 @@ if Code.ensure_loaded?(Surface) do
       name = prepare_icon_name(icon)
 
       Iconify.prepare(name, :css)
-      |> IO.inspect(label: "prepared icon")
+      # |> IO.inspect(label: "prepared icon")
 
       name
     end
@@ -182,7 +182,7 @@ if Code.ensure_loaded?(Surface) do
 
     defp prepare_icon_name(assigns) do
       e = "iconify: icon name not found in assigns"
-      IO.inspect(assigns, label: e)
+      # IO.inspect(assigns, label: e)
       # raise e
       ""
     end
@@ -198,16 +198,16 @@ if Code.ensure_loaded?(Surface) do
 
     def class_to_string(class) when is_list(class) do
       if Keyword.keyword?(class) do
-        IO.inspect(class, label: "kccccc")
+        # IO.inspect(class, label: "kccccc")
         Surface.css_class(class)
       else
-        IO.inspect(class, label: "lccccc")
+        # IO.inspect(class, label: "lccccc")
         Enum.join(class, " ")
       end
     end
 
     def class_to_string(class) do
-      IO.inspect(class, label: "occccc")
+      # IO.inspect(class, label: "occccc")
       Surface.css_class(class)
     end
   end
