@@ -48,7 +48,7 @@ defmodule Iconify do
 
       iex> {:img, _fun, %{src: "/images/icons/twemoji/rabbit.svg"}} = Iconify.prepare(%{icon: "twemoji:rabbit", __changed__: nil})
 
-      iex> {:css, _fun, %{icon_name: "heroicons:question-mark-circle-solid"}} = Iconify.prepare(%{icon: "non-existent-icon", __changed__: nil})
+      iex> {:css, _fun, %{icon_name: "heroicons-solid:question-mark-circle"}} = Iconify.prepare(%{icon: "non-existent-icon", __changed__: nil})
 
        > Iconify.prepare(%{icon: "<svg>...</svg>", __changed__: nil})
       {:inline, _fun, %{icon: "<svg>...</svg>"}}
@@ -170,10 +170,10 @@ defmodule Iconify do
   ## Examples
 
       iex> Iconify.fallback_icon()
-      "heroicons:question-mark-circle-solid"
+      "heroicons-solid:question-mark-circle"
   """
   def fallback_icon,
-    do: Application.get_env(:iconify_ex, :fallback_icon, "heroicons:question-mark-circle-solid")
+    do: Application.get_env(:iconify_ex, :fallback_icon, "heroicons-solid:question-mark-circle")
 
   if Mix.env() == :prod do
     def preparation_enabled? do
@@ -751,11 +751,65 @@ defmodule Iconify do
       |> Jason.decode!()
     else
       _ ->
-        icon_error(
-          icon_name,
-          "No icon set found at `#{json_filepath}` for the icon `#{icon_name}`. Find icon sets at https://icones.js.org"
-        )
+        # Try to auto-install icon sets if missing
+        if Code.ensure_loaded?(Mix.Tasks.Iconify.Setup) do
+          case maybe_auto_install_icon_sets(json_filepath) do
+            :ok ->
+              # Retry after installation
+              case File.read(json_filepath) do
+                {:ok, data} -> Jason.decode!(data)
+                _ -> icon_error_no_icon_set(json_filepath, icon_name)
+              end
+
+            :error ->
+              icon_error_no_icon_set(json_filepath, icon_name)
+          end
+        else
+          icon_error_no_icon_set(json_filepath, icon_name)
+        end
     end
+  end
+
+  defp maybe_auto_install_icon_sets(json_filepath) do
+    # Only attempt auto-install once per session to avoid repeated failures
+    cache_key = :iconify_auto_install_attempted
+
+    if :persistent_term.get(cache_key, false) do
+      :error
+    else
+      :persistent_term.put(cache_key, true)
+
+      Mix.shell().info("""
+      Iconify icon sets not found. Auto-installing...
+      (Missing: #{json_filepath})
+      """)
+
+      try do
+        Mix.Tasks.Iconify.Setup.run([])
+        :ok
+      rescue
+        _ -> :error
+      end
+    end
+  end
+
+  defp icon_error_no_icon_set(json_filepath, icon_name) do
+    icon_error(
+      icon_name,
+      """
+      No icon set found at `#{json_filepath}` for the icon `#{icon_name}`.
+
+      Icon sets must be installed before use. Run:
+
+          mix iconify.setup
+
+      Or manually:
+
+          cd deps/iconify_ex/assets && npm install
+
+      Find available icons at https://icones.js.org
+      """
+    )
   end
 
   defp module_name(family_name, icon_name) do
@@ -1033,10 +1087,21 @@ defmodule Iconify do
     end
   end
 
-  defp json_path(family_name),
-    do:
-      "#{@cwd}/assets/node_modules/@iconify/json/json/#{family_name}.json"
-      |> IO.inspect(label: "load JSON for #{family_name} icon family")
+  defp json_path(family_name) do
+    # __DIR__ is the directory containing this source file (lib/)
+    # Go up one level to get the iconify_ex root, then into assets/
+    lib_assets_path = Path.join([__DIR__, "..", "assets", "node_modules", "@iconify", "json", "json", "#{family_name}.json"]) |> Path.expand()
+
+    # Also check the project's own assets folder (for projects that install directly)
+    project_assets_path = Path.join([File.cwd!(), "assets", "node_modules", "@iconify", "json", "json", "#{family_name}.json"])
+
+    cond do
+      File.exists?(lib_assets_path) -> lib_assets_path
+      File.exists?(project_assets_path) -> project_assets_path
+      true -> lib_assets_path  # Return lib path for error message
+    end
+    |> IO.inspect(label: "load JSON for #{family_name} icon family")
+  end
 
   defp css_svg(icon_name, svg) do
     css_with_data_svg(icon_name, data_svg(svg))
@@ -1065,7 +1130,7 @@ defmodule Iconify do
     |> Enum.map(&icon_name/1)
   end
 
-  defp family_and_icon(nil), do: {"heroicons", "question-mark-circle-solid"}
+  defp family_and_icon(nil), do: {"heroicons-solid", "question-mark-circle"}
 
   defp family_and_icon(name) do
     name

@@ -64,7 +64,7 @@ defmodule Iconify.MixProject do
 
   defp aliases do
     [
-      setup: ["deps.get", "deps.compile", "compile"]
+      setup: ["deps.get", "iconify.setup", "deps.compile", "compile"]
     ]
   end
 end
