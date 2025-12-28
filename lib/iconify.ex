@@ -752,25 +752,30 @@ defmodule Iconify do
     else
       _ ->
         # Try to auto-install icon sets if missing
-        if Code.ensure_loaded?(Mix.Tasks.Iconify.Setup) do
-          case maybe_auto_install_icon_sets(json_filepath) do
-            :ok ->
-              # Retry after installation
-              case File.read(json_filepath) do
-                {:ok, data} -> Jason.decode!(data)
-                _ -> icon_error_no_icon_set(json_filepath, icon_name)
-              end
+        case maybe_auto_install_icon_sets(json_filepath) do
+          :ok ->
+            # Retry after installation
+            case File.read(json_filepath) do
+              {:ok, data} -> Jason.decode!(data)
+              _ -> icon_error_no_icon_set(json_filepath, icon_name)
+            end
 
-            :error ->
-              icon_error_no_icon_set(json_filepath, icon_name)
-          end
-        else
-          icon_error_no_icon_set(json_filepath, icon_name)
+          :error ->
+            icon_error_no_icon_set(json_filepath, icon_name)
         end
     end
   end
 
   defp maybe_auto_install_icon_sets(json_filepath) do
+    # Only attempt auto-install if Mix is available (not in production releases)
+    if Code.ensure_loaded?(Mix) and function_exported?(Mix, :env, 0) do
+      do_auto_install_icon_sets(json_filepath)
+    else
+      :error
+    end
+  end
+
+  defp do_auto_install_icon_sets(json_filepath) do
     # Use a lock to ensure only one process installs and others wait
     # This prevents race conditions in parallel test execution
     cache_key = :iconify_auto_install_state
@@ -798,11 +803,14 @@ defmodule Iconify do
 
         result =
           try do
+            # Ensure the task module is compiled
+            Code.ensure_compiled(Mix.Tasks.Iconify.Setup)
             Mix.Tasks.Iconify.Setup.run([])
             :persistent_term.put(cache_key, :completed)
             :ok
           rescue
-            _ ->
+            e ->
+              IO.puts("Iconify auto-install failed: #{inspect(e)}")
               :persistent_term.put(cache_key, :failed)
               :error
           end
