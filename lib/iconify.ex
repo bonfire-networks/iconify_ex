@@ -1193,7 +1193,7 @@ defmodule Iconify do
     manual(icon, assign(socket.assigns, :mode, :data))
     # |> IO.inspect(label: "iconify - not emojiii")
     ~> data_image_svg()
-    ~> maybe_phx_live_set_dynamic(socket, ...)
+    |> maybe_phx_live_set_dynamic(socket, ...)
   end
 
   defp data_image_svg(svg), do: "data:image/svg+xml;utf8,#{svg}"
