@@ -1190,10 +1190,16 @@ defmodule Iconify do
   end
 
   defp do_set_favicon_iconify(socket, icon) do
-    manual(icon, assign(socket.assigns, :mode, :data))
-    # |> IO.inspect(label: "iconify - not emojiii")
-    ~> data_image_svg()
-    |> maybe_phx_live_set_dynamic(socket, ...)
+    case manual(icon, assign(socket.assigns, :mode, :data)) do
+      svg when is_binary(svg) ->
+        svg
+        |> data_image_svg()
+        |> maybe_phx_live_set_dynamic(socket, ...)
+
+      _ ->
+        # icon not found, reset favicon and return socket
+        maybe_phx_live_set_dynamic(socket, nil)
+    end
   end
 
   defp data_image_svg(svg), do: "data:image/svg+xml;utf8,#{svg}"
