@@ -2,7 +2,7 @@ defmodule Iconify.MixProject do
   use Mix.Project
 
   @project_url "https://github.com/bonfire-networks/iconify_ex"
-  @version "0.7.1"
+  @version "0.7.2"
 
   def project do
     [
@@ -58,7 +58,7 @@ defmodule Iconify.MixProject do
         "GitHub" => @project_url,
         "Browse available icons" => "https://icon-sets.iconify.design"
       },
-      files: ["lib", "mix.exs", "README*", "assets/package.json"]
+      files: ["lib", "mix.exs", "README*", "assets/package.json", "assets/yarn.lock"]
     ]
   end
 
