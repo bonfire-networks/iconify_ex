@@ -46,6 +46,7 @@ defmodule Iconify.MixProject do
       {:recase, "~> 0.8"},
       {:arrows, "~> 0.2"},
       {:untangle, "~> 0.3"},
+      {:process_tree, "~> 0.2.1"},
       {:floki, ">= 0.30.0", optional: true}
     ]
   end

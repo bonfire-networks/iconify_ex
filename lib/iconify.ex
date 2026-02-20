@@ -900,7 +900,7 @@ defmodule Iconify do
   defp file_open(path, args, _) do
     key = "iconify_ex_file_#{path}_#{inspect(args)}"
 
-    case Process.get(key) do
+    case ProcessTree.get(key) do
       nil ->
         # debug(path, "open")
         file_open(path, args, {:force, key})
