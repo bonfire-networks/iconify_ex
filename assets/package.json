@@ -1,6 +1,6 @@
 {
-  "dependencies": {},
   "optionalDependencies": {
     "@iconify/json": "^2.2.421"
-  }
+  },
+  "packageManager": "yarn@4.14.1"
 }
