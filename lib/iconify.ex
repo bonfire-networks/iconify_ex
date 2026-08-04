@@ -586,12 +586,155 @@ defmodule Iconify do
 
       if preparation_enabled?() do
         do_prepare_icon_css(family_name, icon_name, icon_css_name, opts)
+        prepare_icon_weight_variants(family_name, icon_name, icon_css_name, opts)
       end
 
       icon_css_name
     else
       _ ->
         icon_error(icon, "Could not process family_and_icon")
+    end
+  end
+
+  @weight_suffixes ~w(thin light regular bold fill duotone)
+
+  @doc """
+  Per-family alternative icon weights for which scoped override stylesheets are generated,
+  configured as e.g. `config :iconify_ex, :weight_variants, %{"ph" => ["thin", "duotone"]}`.
+
+  For each configured weight an `icons-<weight>.css` is maintained next to `icons.css`,
+  holding one rule per icon of that family:
+
+      [data-icon-weight="thin"] [iconify="ph:gear-fill"]{--Iy:url("...thin svg...")}
+
+  Only the `--Iy` variable is overridden: the base rule in `icons.css` already applies
+  `mask-image:var(--Iy)`, and the extra ancestor selector gives the override higher
+  specificity regardless of stylesheet order. Setting `data-icon-weight` on `<html>`
+  (with the matching stylesheet loaded) switches every icon of the family to that
+  weight without touching any markup.
+  """
+  def weight_variants_config, do: Application.get_env(:iconify_ex, :weight_variants, %{})
+
+  @doc false
+  # Appends scoped override rules for each configured alternative weight of this icon
+  # (no-op for families without configured variants, or when the rule already exists).
+  def prepare_icon_weight_variants(family_name, icon_name, icon_css_name, opts \\ []) do
+    for weight <- Map.get(weight_variants_config(), family_name, []) do
+      do_prepare_icon_weight_variant(family_name, icon_name, icon_css_name, weight, opts)
+    end
+  end
+
+  defp do_prepare_icon_weight_variant(family_name, icon_name, icon_css_name, weight, opts) do
+    # this also runs at runtime (icons rendered via the function component), so memoize
+    # the outcome per icon+weight to avoid re-reading the css/json files on every render
+    cache_key = "iconify_weight_variant_#{weight}_#{icon_css_name}"
+
+    if get_cache(cache_key) do
+      nil
+    else
+      result = do_prepare_icon_weight_variant!(family_name, icon_name, icon_css_name, weight, opts)
+      put_cache(cache_key, :done)
+      result
+    end
+  end
+
+  defp do_prepare_icon_weight_variant!(family_name, icon_name, icon_css_name, weight, opts) do
+    css_path = "#{static_path()}/icons-#{weight}.css"
+    # opts[:icon_json] (if any) is the authored icon's data, not the variant's
+    opts = Keyword.delete(opts, :icon_json)
+
+    with {:ok, file} <- open_css_file(css_path),
+         {false, _contents} <- check_exists_in_css_file(css_path, file, icon_css_name),
+         variant_name when is_binary(variant_name) and variant_name != icon_name <-
+           weight_variant_name(family_name, icon_name, weight, opts) do
+      svg = svg_as_is(json_path(family_name), variant_name, opts)
+
+      append_css(
+        css_path,
+        file,
+        "[data-icon-weight=\"#{weight}\"] [iconify=\"#{icon_css_name}\"]{--Iy:url(\"data:image/svg+xml;utf8,#{data_svg(svg)}\")}",
+        nil
+      )
+    else
+      _ -> nil
+    end
+  catch
+    # variant missing from the icon set: keep the authored weight for this icon
+    {:fallback, _} -> nil
+  end
+
+  # "gear-fill" -> "gear-thin" ("gear" for the "regular" weight); resolves aliases and
+  # returns nil when the target weight doesn't exist in the set
+  defp weight_variant_name(family_name, icon_name, weight, opts) do
+    with {:ok, json, icons} <- list_json_svgs(json_path(family_name), icon_name, opts) do
+      aliases = Map.get(json, "aliases", %{})
+
+      base = base_icon_name(icon_name, icons, aliases)
+      candidate = if weight == "regular", do: base, else: "#{base}-#{weight}"
+
+      resolve_icon_alias(candidate, icons, aliases)
+    end
+  end
+
+  # strips a trailing weight suffix only when the stripped name actually exists in the
+  # set (so e.g. "traffic-light" doesn't wrongly become "traffic")
+  defp base_icon_name(icon_name, icons, aliases) do
+    case Regex.run(~r/^(.+)-(?:#{Enum.join(@weight_suffixes, "|")})$/, icon_name) do
+      [_, base] ->
+        if Map.has_key?(icons, base) or Map.has_key?(aliases, base), do: base, else: icon_name
+
+      _ ->
+        icon_name
+    end
+  end
+
+  defp resolve_icon_alias(name, icons, aliases) do
+    cond do
+      Map.has_key?(icons, name) -> name
+      parent = Map.get(aliases, name, %{})["parent"] -> resolve_icon_alias(parent, icons, aliases)
+      true -> nil
+    end
+  end
+
+  @doc """
+  Backfills the weight-variant stylesheets (see `weight_variants_config/0`) for every icon
+  already present in `icons.css`. Idempotent: only missing rules are appended. Run via
+  `mix iconify.weight_variants` after enabling or changing the `:weight_variants` config
+  (newly used icons are kept in sync automatically at compile time).
+  """
+  def generate_weight_variant_css(opts \\ []) do
+    config = opts[:weight_variants] || weight_variants_config()
+    css_path = css_path()
+
+    with {:ok, file} <- open_css_file(css_path) do
+      icons_in_css =
+        read_file(css_path, file, :force)
+        # some older rules have whitespace around the brace: [iconify="..."] { --Iy: ...
+        |> then(&Regex.scan(~r/\[iconify="([^"]+)"\]\s*\{/, &1, capture: :all_but_first))
+        |> Enum.map(&List.first/1)
+        |> Enum.uniq()
+
+      for {family_name, weights} <- config, into: %{} do
+        prefix = "#{family_name}:"
+        # load the set's json once and reuse it for every icon
+        json_opts = [json: get_json(json_path(family_name))]
+
+        added =
+          for icon_css_name <- icons_in_css,
+              String.starts_with?(icon_css_name, prefix),
+              weight <- weights do
+            do_prepare_icon_weight_variant(
+              family_name,
+              String.replace_prefix(icon_css_name, prefix, ""),
+              icon_css_name,
+              weight,
+              json_opts
+            )
+          end
+          |> Enum.count(&(&1 == :ok))
+
+        {family_name, added}
+      end
     end
   end
 
