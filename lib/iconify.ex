@@ -632,7 +632,9 @@ defmodule Iconify do
     if get_cache(cache_key) do
       nil
     else
-      result = do_prepare_icon_weight_variant!(family_name, icon_name, icon_css_name, weight, opts)
+      result =
+        do_prepare_icon_weight_variant!(family_name, icon_name, icon_css_name, weight, opts)
+
       put_cache(cache_key, :done)
       result
     end
