@@ -1092,7 +1092,16 @@ defmodule Iconify do
   defp init_cache do
     case :ets.whereis(:iconify_ex_cache) do
       :undefined ->
-        :ets.new(:iconify_ex_cache, [:named_table, :set, :public])
+        # `whereis` -> `new` is check-then-act: the compiler prepares icons from
+        # many modules in parallel, so two processes can both see :undefined and
+        # race here. Losing the race is success — the winner's table is the one
+        # we want — so treat "already exists" as a no-op rather than crashing the
+        # whole compile.
+        try do
+          :ets.new(:iconify_ex_cache, [:named_table, :set, :public])
+        rescue
+          ArgumentError -> nil
+        end
 
       _ ->
         nil
@@ -1105,13 +1114,21 @@ defmodule Iconify do
 
     init_cache()
 
-    case :ets.lookup(:iconify_ex_cache, key) do
-      [{key, value}] ->
-        value
+    # The table has no heir, so it belongs to whichever compile worker created it
+    # and is destroyed when that process exits — which can happen between the
+    # `init_cache/0` above and this lookup. Treat that as a cache miss rather
+    # than letting :ets raise and take the whole compile down.
+    try do
+      case :ets.lookup(:iconify_ex_cache, key) do
+        [{key, value}] ->
+          value
 
-      _ ->
-        # not found
-        fallback
+        _ ->
+          # not found
+          fallback
+      end
+    rescue
+      ArgumentError -> fallback
     end
 
     # |> debug
@@ -1122,7 +1139,14 @@ defmodule Iconify do
 
     init_cache()
 
-    :ets.insert(:iconify_ex_cache, {key, value})
+    # same race as in `get_cache/2`: losing the cache write is survivable,
+    # crashing the compile is not
+    try do
+      :ets.insert(:iconify_ex_cache, {key, value})
+    rescue
+      ArgumentError -> false
+    end
+
     # |> debug
   end
 
