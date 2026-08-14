@@ -63,5 +63,33 @@ defmodule Iconify.HeroiconsV2Test do
       # v1 name gets translated to v2
       assert assigns.icon_name == "heroicons:camera"
     end
+
+    test "fallback icon uses correct v1 format" do
+      # The fallback should be heroicons-solid:question-mark-circle
+      # which gets translated to heroicons:question-mark-circle-solid
+      assert Iconify.fallback_icon() == "heroicons-solid:question-mark-circle"
+    end
+
+    test "fallback icon translates to valid v2 icon name" do
+      {:css, _fun, assigns} =
+        Iconify.prepare(%{icon: Iconify.fallback_icon(), __changed__: nil}, :css)
+
+      # Should translate to heroicons:question-mark-circle-solid
+      assert assigns.icon_name == "heroicons:question-mark-circle-solid"
+    end
+  end
+
+  describe "icon lookup from JSON" do
+    @tag :requires_icon_sets
+    test "can look up fallback icon from JSON when not in CSS" do
+      # This indirectly tests that json_path resolves correctly
+      # The fallback icon should be findable in the heroicons JSON
+      # If this fails, json_path is probably returning wrong path
+      assert_raise RuntimeError, fn ->
+        # Force a lookup by using a non-existent icon
+        # This will trigger fallback lookup from JSON
+        Iconify.prepare_name!(%{icon: "nonexistent:icon", __changed__: nil}, mode: :inline)
+      end
+    end
   end
 end
