@@ -597,6 +597,32 @@ defmodule Iconify do
   end
 
   @weight_suffixes ~w(thin light regular bold fill duotone)
+  @outline_carets ~w(caret-right caret-left caret-down caret-up)
+
+  @doc """
+  Keeps Phosphor navigation carets open, preserving authored outline weights.
+
+      iex> Iconify.outline_caret_icon("ph", "caret-right-fill")
+      "caret-right"
+
+      iex> Iconify.outline_caret_icon("ph", "caret-up-duotone")
+      "caret-up"
+
+      iex> Iconify.outline_caret_icon("ph", "caret-left-bold")
+      "caret-left-bold"
+
+      iex> Iconify.outline_caret_icon("ph", "heart-fill")
+      "heart-fill"
+
+      iex> Iconify.outline_caret_icon("other", "caret-down-fill")
+      "caret-down-fill"
+  """
+  def outline_caret_icon("ph", icon_name) do
+    base = String.replace(icon_name, ~r/-(fill|duotone)$/, "")
+    if base in @outline_carets, do: base, else: icon_name
+  end
+
+  def outline_caret_icon(_family_name, icon_name), do: icon_name
 
   @doc """
   Per-family alternative icon weights for which scoped override stylesheets are generated,
@@ -672,7 +698,17 @@ defmodule Iconify do
       aliases = Map.get(json, "aliases", %{})
 
       base = base_icon_name(icon_name, icons, aliases)
-      candidate = if weight == "regular", do: base, else: "#{base}-#{weight}"
+      candidate =
+        cond do
+          family_name == "ph" and base in @outline_carets and weight in ["fill", "duotone"] ->
+            outline_caret_icon(family_name, icon_name)
+
+          weight == "regular" ->
+            base
+
+          true ->
+            "#{base}-#{weight}"
+        end
 
       resolve_icon_alias(candidate, icons, aliases)
     end
@@ -747,7 +783,9 @@ defmodule Iconify do
          {exists_in_css_file?, existing_contents} <-
            check_exists_in_css_file(css_path, file, icon_css_name) do
       if !exists_in_css_file? do
-        svg = opts[:svg] || svg_as_is(json_path(family_name), icon_name, opts)
+        svg_name = outline_caret_icon(family_name, icon_name)
+        opts = if svg_name != icon_name, do: Keyword.delete(opts, :icon_json), else: opts
+        svg = opts[:svg] || svg_as_is(json_path(family_name), svg_name, opts)
         # |> IO.inspect()
 
         data_svg = data_svg(svg)
