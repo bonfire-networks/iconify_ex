@@ -612,7 +612,12 @@ defmodule Iconify do
       iex> Iconify.resolve_icon_weight("example", "heart-fill", %{"example" => %{"chevron" => ["fill"]}})
       "heart-fill"
   """
-  def resolve_icon_weight(family_name, icon_name, exclusions \\ Application.get_env(:iconify_ex, :excluded_weights, %{}), fallback \\ nil) do
+  def resolve_icon_weight(
+        family_name,
+        icon_name,
+        exclusions \\ Application.get_env(:iconify_ex, :excluded_weights, %{}),
+        fallback \\ nil
+      ) do
     case Regex.run(~r/^(.+)-(#{Enum.join(@weight_suffixes, "|")})$/, icon_name) do
       [_, base, weight] ->
         if weight in (get_in(exclusions, [family_name, base]) || []),
