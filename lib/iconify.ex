@@ -322,7 +322,7 @@ defmodule Iconify do
     json_path = json_path(family_name)
 
     svg = svg_for_sprite(json_path, icon_name, opts)
-    # |> IO.inspect()
+    # 
   end
 
   defp do_prepare_set_icon_img(family_name, icon_name, opts \\ []) do
@@ -373,7 +373,7 @@ defmodule Iconify do
             )
 
             svg = opts[:svg] || prepare_svg_for_set(family_name, icon_name, opts)
-            # |> IO.inspect()
+            # 
 
             sprite = """
             <?xml version="1.0" encoding="utf-8"?>
@@ -435,7 +435,7 @@ defmodule Iconify do
       json_path = json_path(family_name)
 
       svg = opts[:svg] || svg_as_is(json_path, icon_name, opts)
-      # |> IO.inspect()
+      # 
 
       File.mkdir_p(path)
       File.write!(src, svg)
@@ -784,12 +784,12 @@ defmodule Iconify do
         svg_name = resolve_icon_weight(family_name, icon_name)
         opts = if svg_name != icon_name, do: Keyword.delete(opts, :icon_json), else: opts
         svg = opts[:svg] || svg_as_is(json_path(family_name), svg_name, opts)
-        # |> IO.inspect()
+        # 
 
         data_svg = data_svg(svg)
 
         css = css_with_data_svg(icon_css_name, data_svg)
-        # |> IO.inspect()
+        # 
 
         append_css(css_path, file, css, existing_contents)
 
@@ -806,7 +806,7 @@ defmodule Iconify do
            check_exists_in_css_file(css_path, file, icon_css_name) do
       if !exists_in_css_file? do
         css = css_svg(icon_css_name, svg_code)
-        # |> IO.inspect()
+        # 
 
         append_css(css_path, file, css, existing_contents)
       end
@@ -1516,7 +1516,6 @@ defmodule Iconify do
             {css_icon_name(dir, Path.basename(file, ".svg")), Path.join(path, file)}
           end)
     end)
-    |> IO.inspect()
   end
 
   def list_icons_in_images() do
@@ -1584,7 +1583,6 @@ defmodule Iconify do
 
         do_prepare_set_icon_img(family, icon, svg: svg)
       end)
-      |> IO.inspect()
   end
 
   @doc """
@@ -1604,7 +1602,6 @@ defmodule Iconify do
       Enum.map(icons, fn {name, full_path} ->
         css_svg(name, File.read!(full_path))
       end)
-      |> IO.inspect()
 
     write_css(icons_dir, css)
   end
@@ -1631,7 +1628,6 @@ defmodule Iconify do
           |> String.replace("class=\"\"", "")
         )
       end)
-      |> IO.inspect()
 
     write_css(css)
   end
