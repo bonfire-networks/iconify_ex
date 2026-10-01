@@ -597,37 +597,6 @@ defmodule Iconify do
   end
 
   @weight_suffixes ~w(thin light regular bold fill duotone)
-  @doc """
-  Resolves an excluded icon weight to a fallback, or to the regular icon when no fallback is given. Applications can configure `:excluded_weights` as a map of family names to icon names and excluded weights; the default is empty.
-
-      iex> Iconify.resolve_icon_weight("example", "chevron-fill", %{})
-      "chevron-fill"
-
-      iex> Iconify.resolve_icon_weight("example", "chevron-fill", %{"example" => %{"chevron" => ["fill"]}})
-      "chevron"
-
-      iex> Iconify.resolve_icon_weight("example", "chevron-fill", %{"example" => %{"chevron" => ["fill"]}}, "chevron-bold")
-      "chevron-bold"
-
-      iex> Iconify.resolve_icon_weight("example", "heart-fill", %{"example" => %{"chevron" => ["fill"]}})
-      "heart-fill"
-  """
-  def resolve_icon_weight(
-        family_name,
-        icon_name,
-        exclusions \\ Application.get_env(:iconify_ex, :excluded_weights, %{}),
-        fallback \\ nil
-      ) do
-    case Regex.run(~r/^(.+)-(#{Enum.join(@weight_suffixes, "|")})$/, icon_name) do
-      [_, base, weight] ->
-        if weight in (get_in(exclusions, [family_name, base]) || []),
-          do: fallback || base,
-          else: icon_name
-
-      _ ->
-        icon_name
-    end
-  end
 
   @doc """
   Per-family alternative icon weights for which scoped override stylesheets are generated,
@@ -703,10 +672,7 @@ defmodule Iconify do
       aliases = Map.get(json, "aliases", %{})
 
       base = base_icon_name(icon_name, icons, aliases)
-      exclusions = Application.get_env(:iconify_ex, :excluded_weights, %{})
-      fallback = resolve_icon_weight(family_name, icon_name, exclusions)
       candidate = if weight == "regular", do: base, else: "#{base}-#{weight}"
-      candidate = resolve_icon_weight(family_name, candidate, exclusions, fallback)
 
       resolve_icon_alias(candidate, icons, aliases)
     end
@@ -781,9 +747,7 @@ defmodule Iconify do
          {exists_in_css_file?, existing_contents} <-
            check_exists_in_css_file(css_path, file, icon_css_name) do
       if !exists_in_css_file? do
-        svg_name = resolve_icon_weight(family_name, icon_name)
-        opts = if svg_name != icon_name, do: Keyword.delete(opts, :icon_json), else: opts
-        svg = opts[:svg] || svg_as_is(json_path(family_name), svg_name, opts)
+        svg = opts[:svg] || svg_as_is(json_path(family_name), icon_name, opts)
         # 
 
         data_svg = data_svg(svg)
