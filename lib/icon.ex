@@ -69,7 +69,7 @@ if Code.ensure_loaded?(Surface) do
 
       class =
         Surface.AST.find_attribute_value(attributes, :class) ||
-          Application.get_env(:iconify_ex, :default_class, "w-4 h-4")
+          Application.get_env(:iconify_ex, :default_class, "size-4")
 
       # TODO? simply include the phoenix component like so instead of duplicating logic, see https://github.com/surface-ui/surface/pull/685#issuecomment-1505978390
       # quote_surface caller: meta.caller do

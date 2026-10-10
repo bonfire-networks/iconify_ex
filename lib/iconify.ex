@@ -15,10 +15,10 @@ defmodule Iconify do
 
   ## Examples
 
-      iex> assigns = %{icon: "heroicons:user-solid", class: "w-6 h-6", __changed__: nil}
+      iex> assigns = %{icon: "heroicons:user-solid", class: "size-6", __changed__: nil}
       iex> Iconify.iconify(assigns) # Returns rendered icon HTML
 
-      iex> assigns = %{icon: "heroicons-solid:user", class: "w-6 h-6", __changed__: nil}
+      iex> assigns = %{icon: "heroicons-solid:user", class: "size-6", __changed__: nil}
       iex> Iconify.iconify(assigns) # Returns rendered icon HTML (v1 backwards compat)
   """
   def iconify(assigns) do
@@ -38,7 +38,7 @@ defmodule Iconify do
 
   ## Examples
 
-      iex> {:css, _function, %{icon: "heroicons:user-solid", class: "w-4 h-4", icon_name: "heroicons:user-solid"}} = Iconify.prepare(%{icon: "heroicons:user-solid", __changed__: nil}, :css)
+      iex> {:css, _function, %{icon: "heroicons:user-solid", class: "size-4", icon_name: "heroicons:user-solid"}} = Iconify.prepare(%{icon: "heroicons:user-solid", __changed__: nil}, :css)
 
       iex> {:inline, _fun, %{icon: "heroicons:user-solid"}} = Iconify.prepare(%{icon: "heroicons:user-solid", __changed__: nil}, :inline)
 
@@ -106,7 +106,7 @@ defmodule Iconify do
   defp do_prepare(assigns, opts) when is_map(assigns) and is_list(opts) do
     assigns =
       assign_new(assigns, :class, fn ->
-        Application.get_env(:iconify_ex, :default_class, "w-4 h-4")
+        Application.get_env(:iconify_ex, :default_class, "size-4")
       end)
 
     icon = Map.fetch!(assigns, :icon)
