@@ -18,15 +18,63 @@ There is also an optional integration of [phoenix_live_favicon](https://github.c
 ```elixir
 def deps do
   [
-    {:iconify_ex, "~> 0.1.0"}
+    {:iconify_ex, "~> 0.7"}
   ]
 end
 ```
 
-After running `mix deps.get` you need to fetch the latest [iconify icon sets](https://github.com/iconify/icon-sets) by running something like:
+After running `mix deps.get`, install the icon sets:
 
 ```bash
-cd deps/iconify_ex/assets && yarn && cd -
+mix iconify.setup
+```
+
+This downloads the [@iconify/json](https://github.com/iconify/icon-sets) package containing 100,000+ icons.
+
+### CI / Production Setup
+
+**Important:** The icon sets must be installed in your CI environment. Add `mix iconify.setup` to your CI workflow:
+
+```yaml
+# GitHub Actions example
+- run: mix deps.get
+- run: mix iconify.setup
+- run: mix compile
+```
+
+Or add it to your mix aliases for convenience:
+
+```elixir
+defp aliases do
+  [
+    setup: ["deps.get", "iconify.setup", "ecto.setup"],
+    # ...
+  ]
+end
+```
+
+The `--if-missing` flag skips installation if icon sets are already present:
+
+```bash
+mix iconify.setup --if-missing
+```
+
+### Auto-install (Development)
+
+For development convenience, you can enable auto-install which automatically runs `mix iconify.setup` when an icon lookup fails:
+
+```elixir
+config :iconify_ex, :auto_install, true
+```
+
+This is useful during development when you add new icons - they'll be fetched automatically on first use.
+
+### Setup Options
+
+```bash
+mix iconify.setup              # Install icon sets
+mix iconify.setup --if-missing # Only install if not already present
+mix iconify.setup --path PATH  # Install to custom path
 ```
 
 ## Usage
@@ -97,4 +145,3 @@ If your icon is dynamic, you'll still want to use the first form:
 
 - **v2 naming** (recommended): `heroicons:icon-name` (24px outline), `heroicons:icon-name-solid` (24px solid), `heroicons:icon-name-20-solid` (20px mini), `heroicons:icon-name-16-solid` (16px micro)
 - **v1 naming** (backwards compatible): `heroicons-solid:icon-name` (auto-translates to v2 24px solid), `heroicons-outline:icon-name` (auto-translates to v2 24px outline)
-
