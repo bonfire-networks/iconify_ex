@@ -345,11 +345,12 @@ defmodule Iconify do
       File.mkdir_p(path)
       File.write!(src, sprite)
 
-      IO.inspect(src,
-        label: "Iconify set created: #{family_name} and icon added on family sprite: #{icon_name}"
+      debug(
+        src,
+        "Iconify set created: #{family_name} and icon added on family sprite: #{icon_name}"
       )
     else
-      IO.inspect(src, label: "Iconify found existing family icon set: #{family_name}")
+      debug(src, "Iconify found existing family icon set: #{family_name}")
 
       {:ok, file} = file_open(src, [:read, :utf8])
 
@@ -366,11 +367,9 @@ defmodule Iconify do
           # |> IO.inspect
 
           if Floki.find(svgs, "[id=#{icon_name}]") |> Enum.count() > 0 do
-            IO.inspect(src, label: "Iconify icon already exists in set: #{icon_name}")
+            debug(src, "Iconify icon already exists in set: #{icon_name}")
           else
-            IO.inspect(src,
-              label: "Iconify look for icon #{icon_name} in iconify icon set: #{family_name}"
-            )
+            debug(src, "Iconify look for icon #{icon_name} in iconify icon set: #{family_name}")
 
             svg = opts[:svg] || prepare_svg_for_set(family_name, icon_name, opts)
             # 
@@ -389,11 +388,11 @@ defmodule Iconify do
             File.write!(src, sprite)
             cache_contents(src, sprite)
 
-            IO.inspect(src, label: "Iconify icon added on family sprite: #{family_name}")
+            debug(src, "Iconify icon added on family sprite: #{family_name}")
           end
 
         {:error, err} ->
-          IO.inspect(err)
+          error(err, "Iconify could not parse the family sprite #{src}")
       end
     end
   end
@@ -430,7 +429,7 @@ defmodule Iconify do
     src = "#{path}/#{icon_name}.svg"
 
     if not File.exists?(src) do
-      IO.inspect(src, label: "Iconify new icon found")
+      debug(src, "Iconify new icon found")
 
       json_path = json_path(family_name)
 
@@ -440,9 +439,9 @@ defmodule Iconify do
       File.mkdir_p(path)
       File.write!(src, svg)
 
-      IO.inspect(src, label: "Iconify icon added")
+      debug(src, "Iconify icon added")
     else
-      IO.inspect(src, label: "Iconify icon already exists")
+      debug(src, "Iconify icon already exists")
     end
   end
 
@@ -585,7 +584,12 @@ defmodule Iconify do
       icon_css_name = css_icon_name(family_name, icon_name)
 
       if preparation_enabled?() do
-        do_prepare_icon_css(family_name, icon_name, icon_css_name, opts)
+        # this runs on every render, so memoize per icon to avoid re-reading icons.css each time
+        cached({:css_done, icon_css_name}, fn ->
+          do_prepare_icon_css(family_name, icon_name, icon_css_name, opts)
+          :done
+        end)
+
         prepare_icon_weight_variants(family_name, icon_name, icon_css_name, opts)
       end
 
@@ -890,17 +894,23 @@ defmodule Iconify do
     end
   end
 
+  # icon sets are multi-MB files, so decode each one once per VM (icon_error throws, so a missing set isn't cached)
   defp get_json(json_filepath, icon_name \\ nil) do
-    with {:ok, data} <- File.read(json_filepath) do
-      data
-      |> Jason.decode!()
-    else
-      _ ->
-        icon_error(
-          icon_name,
-          "No icon set found at `#{json_filepath}` for the icon `#{icon_name}`. Find icon sets at https://icones.js.org"
-        )
-    end
+    cached({:json, json_filepath}, fn ->
+      # should appear about once per icon set per VM, so seeing it repeat in logs means the cache is broken
+      notice(json_filepath, "Iconify decoding icon set")
+
+      with {:ok, data} <- File.read(json_filepath) do
+        data
+        |> Jason.decode!()
+      else
+        _ ->
+          icon_error(
+            icon_name,
+            "No icon set found at `#{json_filepath}` for the icon `#{icon_name}`. Find icon sets at https://icones.js.org"
+          )
+      end
+    end)
   end
 
   defp module_name(family_name, icon_name) do
@@ -1074,80 +1084,28 @@ defmodule Iconify do
   end
 
   defp read_file(path, file, _) do
-    key = cache_contents_key(path)
-
-    case get_cache(key) do
-      nil ->
-        # debug(path, "read")
-        contents = IO.read(file, :all)
-        cache_contents(path, contents, key)
-        contents
-
-      contents ->
-        # debug(path, "use cached")
-        contents
-    end
+    cached(cache_contents_key(path), fn -> IO.read(file, :all) end)
   end
 
-  defp init_cache do
-    case :ets.whereis(:iconify_ex_cache) do
-      :undefined ->
-        # `whereis` -> `new` is check-then-act: the compiler prepares icons from
-        # many modules in parallel, so two processes can both see :undefined and
-        # race here. Losing the race is success — the winner's table is the one
-        # we want — so treat "already exists" as a no-op rather than crashing the
-        # whole compile.
-        try do
-          :ets.new(:iconify_ex_cache, [:named_table, :set, :public])
-        rescue
-          ArgumentError -> nil
-        end
+  # Stored in :persistent_term rather than a process-owned ETS table, which was destroyed whenever the (often short-lived: compile worker, test, LiveView) process that created it exited, taking every memo with it. Reads don't copy (the decoded icon sets are large), and entries are written once per VM: replacing one (only sprite mode does, via `cache_contents/3`) triggers a global GC.
+  defp cached(key, fun) do
+    case get_cache(key) do
+      nil ->
+        value = fun.()
+        put_cache(key, value)
+        value
 
-      _ ->
-        nil
-        # already exists
+      value ->
+        value
     end
   end
 
   defp get_cache(key, fallback \\ nil) do
-    # Process.get(key)
-
-    init_cache()
-
-    # The table has no heir, so it belongs to whichever compile worker created it
-    # and is destroyed when that process exits — which can happen between the
-    # `init_cache/0` above and this lookup. Treat that as a cache miss rather
-    # than letting :ets raise and take the whole compile down.
-    try do
-      case :ets.lookup(:iconify_ex_cache, key) do
-        [{key, value}] ->
-          value
-
-        _ ->
-          # not found
-          fallback
-      end
-    rescue
-      ArgumentError -> fallback
-    end
-
-    # |> debug
+    :persistent_term.get({__MODULE__, key}, fallback)
   end
 
   defp put_cache(key, value) do
-    # Process.put(key)
-
-    init_cache()
-
-    # same race as in `get_cache/2`: losing the cache write is survivable,
-    # crashing the compile is not
-    try do
-      :ets.insert(:iconify_ex_cache, {key, value})
-    rescue
-      ArgumentError -> false
-    end
-
-    # |> debug
+    :persistent_term.put({__MODULE__, key}, value)
   end
 
   defp cache_contents_key(path) do
@@ -1203,9 +1161,7 @@ defmodule Iconify do
   end
 
   defp json_path(family_name),
-    do:
-      "#{@cwd}/assets/node_modules/@iconify/json/json/#{family_name}.json"
-      |> IO.inspect(label: "load JSON for #{family_name} icon family")
+    do: "#{@cwd}/assets/node_modules/@iconify/json/json/#{family_name}.json"
 
   defp css_svg(icon_name, svg) do
     css_with_data_svg(icon_name, data_svg(svg))
